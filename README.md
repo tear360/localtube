@@ -14,15 +14,20 @@ LocalTube/
 
 ## 1. Sur le PC : lancer le serveur
 
-1. Double-clique sur `lancer_serveur.bat` (il sert `%USERPROFILE%\Videos`
-   sur le port `8000`). Pour servir un autre dossier :
-   ```
-   python serveur_videos.py "D:\Mes Films" 8000
-   ```
-2. Au premier lancement, Windows demande l'autorisation du pare-feu →
-   coche **Réseaux privés** et valide.
-3. Le script affiche les adresses à utiliser, par ex. :
-   `http://192.168.1.50:8000`
+**Mode normal (invisible)** — double-clique sur `lancer_serveur.vbs` :
+le serveur démarre en arrière-plan, aucune fenêtre. Il sert
+`%USERPROFILE%\Videos\LocalTube` sur le port `8000`.
+
+- Pour l'**arrêter** : `arrester_serveur.bat` (ou gestionnaire des
+  tâches → processus `pythonw.exe`).
+- Les messages (adresse IP, vidéos trouvées, erreurs…) sont écrits dans
+  `server\serveur_log.txt`.
+
+**Mode console (dépannage)** — `lancer_serveur.bat` affiche tout en
+direct. Pour servir un autre dossier :
+```
+python server\serveur_videos.py "D:\Mes Films" 8000
+```
 
 Formats reconnus : mp4, m4v, mkv, webm, avi, mov, wmv, flv, mpg, mpeg,
 ts, 3gp, ogv (y compris dans des sous-dossiers).
@@ -64,8 +69,8 @@ y compris sur les téléphones **ARMv7 32 bits** (Android 5.0 minimum).
 - Le seek (avance rapide) fonctionne car le serveur gère les requêtes
   HTTP *Range*.
 - Si ça ne connecte pas : pare-feu Windows, IP changée par la box
-  (relance le script pour voir la nouvelle adresse), ou VPN actif sur
-  le téléphone.
+  (redémarre le serveur puis regarde `server\serveur_log.txt` pour la
+  nouvelle adresse), ou VPN actif sur le téléphone.
 
 ---
 

@@ -7,6 +7,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -29,6 +30,23 @@ MIMES_SUP = {
 }
 
 CHUNK = 512 * 1024
+
+LOG_FILE = os.path.join(SCRIPT_DIR, "serveur_log.txt")
+
+
+def ecrire(texte):
+    if sys.stdout is not None:
+        try:
+            sys.stdout.write(texte + "\n")
+            sys.stdout.flush()
+            return
+        except Exception:
+            pass
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + texte + "\n")
+    except OSError:
+        pass
 
 
 def trouver_ffmpeg():
@@ -125,15 +143,14 @@ def pre_generer():
     for video_abs, relatif in iterer_videos():
         if assurer_miniature(video_abs, chemin_miniature(relatif)):
             nb += 1
-    print("Miniatures pre-generatees : %d" % nb)
+    ecrire("Miniatures pre-generatees : %d" % nb)
 
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
-        sys.stdout.write("%s - %s\n" % (self.address_string(), fmt % args))
-        sys.stdout.flush()
+        ecrire("%s - %s" % (self.address_string(), fmt % args))
 
     def do_GET(self):
         self.repondre()
@@ -299,30 +316,43 @@ def principal():
     VIDEO_DIR = os.path.abspath(VIDEO_DIR)
 
     if not os.path.isdir(VIDEO_DIR):
-        print("Dossier vidéo introuvable : %s" % VIDEO_DIR)
-        rep = input("Voulez-vous le créer ? [o/N] ").strip().lower()
-        if rep == "o":
-            os.makedirs(VIDEO_DIR)
+        if sys.stdin is not None:
+            print("Dossier vidéo introuvable : %s" % VIDEO_DIR)
+            rep = input("Voulez-vous le créer ? [o/N] ").strip().lower()
+            if rep == "o":
+                os.makedirs(VIDEO_DIR)
+            else:
+                print('Relancez avec : python serveur_videos.py "CHEMIN_DU_DOSSIER"')
+                sys.exit(1)
         else:
-            print('Relancez avec : python serveur_videos.py "CHEMIN_DU_DOSSIER"')
-            sys.exit(1)
+            os.makedirs(VIDEO_DIR)
+            ecrire("Dossier cree : %s" % VIDEO_DIR)
 
-    serveur = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    try:
+        serveur = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    except OSError as err:
+        ecrire("Impossible de demarrer sur le port %d : %s" % (PORT, err))
+        sys.exit(1)
+
     nb_videos = len(lister_videos())
-    print("=" * 60)
-    print(" LocalTube - serveur de videos")
-    print(" Dossier servi   : %s" % VIDEO_DIR)
-    print(" Port            : %d" % PORT)
-    print(" Videos trouvees : %d" % nb_videos)
-    print(" Miniatures      : %s" %
+    ecrire("=" * 60)
+    ecrire(" LocalTube - serveur de videos")
+    ecrire(" Dossier servi   : %s" % VIDEO_DIR)
+    ecrire(" Port            : %d" % PORT)
+    ecrire(" Videos trouvees : %d" % nb_videos)
+    ecrire(" Miniatures      : %s" %
           ("activees (ffmpeg)" if FFMPEG else "DESACTIVEES (ffmpeg introuvable)"))
-    print("-" * 60)
-    print(" Sur le telephone, entrez une de ces adresses :")
+    ecrire("-" * 60)
+    ecrire(" Sur le telephone, entrez une de ces adresses :")
     for ip in adresses_locales():
-        print("   http://%s:%d" % (ip, PORT))
-    print("=" * 60)
+        ecrire("   http://%s:%d" % (ip, PORT))
+    ecrire("=" * 60)
     threading.Thread(target=pre_generer, daemon=True).start()
-    print("Ctrl+C pour arreter.")
+    if sys.stdin is None:
+        ecrire("Mode arriere-plan : fermez via le gestionnaire des taches")
+        ecrire("(pythonw.exe) ou avec arrester_serveur.bat.")
+    else:
+        print("Ctrl+C pour arreter.")
     try:
         serveur.serve_forever()
     except KeyboardInterrupt:
