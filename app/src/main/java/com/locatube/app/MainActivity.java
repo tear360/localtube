@@ -20,6 +20,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,9 +40,10 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
 
     public static final String EXTRA_URL = "url";
+    public static final String EXTRA_REL = "rel";
     public static final String EXTRA_TITLE = "title";
 
-    private static final String PREFS = "locatube";
+    public static final String PREFS = "locatube";
     private static final String PREF_SERVER = "server";
 
     private final List<Video> allVideos = new ArrayList<>();
@@ -52,6 +54,12 @@ public class MainActivity extends Activity {
     private VideoAdapter adapter;
     private TextView emptyView;
     private String query = "";
+
+    private View barreLecture;
+    private TextView barreTitre;
+    private TextView barreTemps;
+    private ProgressBar barreProgress;
+    private String barreRel = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +81,21 @@ public class MainActivity extends Activity {
 
         findViewById(R.id.btn_refresh).setOnClickListener(v -> fetchVideos());
 
+        barreLecture = findViewById(R.id.barre_lecture);
+        barreTitre = findViewById(R.id.barre_titre);
+        barreTemps = findViewById(R.id.barre_temps);
+        barreProgress = findViewById(R.id.barre_progress);
+        barreLecture.setOnClickListener(v -> {
+            if (!barreRel.isEmpty()) {
+                ouvrirVideo(barreRel, barreTitre.getText().toString());
+            }
+        });
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            Video v = shownVideos.get(position);
+            ouvrirVideo(v.url, v.title);
+        });
+
         adapter = new VideoAdapter();
         listView.setAdapter(adapter);
         listView.setEmptyView(emptyView);
@@ -93,20 +116,58 @@ public class MainActivity extends Activity {
             }
         });
 
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            Video v = shownVideos.get(position);
-            Intent it = new Intent(this, PlayerActivity.class);
-            it.putExtra(EXTRA_URL, serverBase() + v.url);
-            it.putExtra(EXTRA_TITLE, v.title);
-            startActivity(it);
-        });
-
         if (serverBase().isEmpty()) {
             promptForServer();
         } else {
             fetchVideos();
         }
         UpdateChecker.check(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        majBarreLecture();
+    }
+
+    private void ouvrirVideo(String relatif, String titre) {
+        Intent it = new Intent(this, PlayerActivity.class);
+        it.putExtra(EXTRA_URL, serverBase() + relatif);
+        it.putExtra(EXTRA_REL, relatif);
+        it.putExtra(EXTRA_TITLE, titre);
+        startActivity(it);
+    }
+
+    private void majBarreLecture() {
+        SharedPreferences p = prefs();
+        String rel = p.getString("last_rel", "");
+        int pos = p.getInt("last_pos", 0);
+        int dur = p.getInt("last_dur", 0);
+        if (rel.isEmpty() || pos <= 0 || serverBase().isEmpty()) {
+            barreRel = "";
+            barreLecture.setVisibility(View.GONE);
+            return;
+        }
+        barreRel = rel;
+        barreTitre.setText(p.getString("last_title", ""));
+        barreTemps.setText(formatTime(pos) + " / " + formatTime(dur));
+        if (dur > 0) {
+            barreProgress.setProgress((int) (pos * 100L / dur));
+        } else {
+            barreProgress.setProgress(0);
+        }
+        barreLecture.setVisibility(View.VISIBLE);
+    }
+
+    public static String formatTime(int ms) {
+        int totalSec = ms / 1000;
+        int h = totalSec / 3600;
+        int m = (totalSec % 3600) / 60;
+        int s = totalSec % 60;
+        if (h > 0) {
+            return String.format(Locale.US, "%d:%02d:%02d", h, m, s);
+        }
+        return String.format(Locale.US, "%d:%02d", m, s);
     }
 
     private SharedPreferences prefs() {
