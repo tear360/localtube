@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LocalTube</string>
+    <string name="search_hint">Rechercher une vidéo…</string>
+    <string name="loading">Chargement…</string>
+    <string name="empty_initial">Bienvenue !\nOuvrez le menu (⋮) → Serveur…\npour indiquer l\'adresse de votre PC.</string>
+    <string name="empty_none">Aucune vidéo trouvée dans le dossier du serveur.\nAppuyez sur Rafraîchir après avoir ajouté des vidéos.</string>
+    <string name="empty_error">Impossible de joindre le serveur.\nVérifiez que le script tourne bien sur le PC,\nque les deux appareils sont sur le même Wi-Fi\net que l\'adresse est correcte (menu ⋮ → Serveur…).</string>
+    <string name="error_prefix">Erreur :</string>
+    <string name="server_dialog_title">Adresse du serveur</string>
+    <string name="server_dialog_message">L\'adresse affichée par le script Python sur votre PC.\nExemple : http://192.168.1.50:8000</string>
+    <string name="menu_server">Serveur…</string>
+    <string name="menu_refresh">Rafraîchir</string>
+    <string name="btn_refresh">Actualiser</string>
+    <string name="player_error">Lecture impossible (format non supporté ou problème réseau)</string>
+    <string name="update_title">Mise à jour disponible</string>
+    <string name="update_message">La version %1$d est disponible sur GitHub.\nLa télécharger et l\'installer maintenant ?</string>
+    <string name="update_install">Installer</string>
+    <string name="update_downloading">Téléchargement de la mise à jour…</string>
+    <string name="install_fail">Impossible de lancer l\'installation de la mise à jour</string>
+</resources>
