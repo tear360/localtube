@@ -19,4 +19,12 @@
     <string name="update_downloading">Téléchargement de la mise à jour…</string>
     <string name="install_fail">Impossible de lancer l\'installation de la mise à jour</string>
     <string name="resume_toast">Reprise à %1$s</string>
+    <string name="blocage_temps_titre">Temps écoulé</string>
+    <string name="blocage_temps_msg">Le temps de visionnage du jour est terminé.\nDemande plus de temps à tes parents !</string>
+    <string name="blocage_manuel_titre">Accès bloqué</string>
+    <string name="blocage_manuel_msg">L\'accès aux vidéos est actuellement bloqué.</string>
+    <string name="btn_demander">Demander plus de temps</string>
+    <string name="demande_envoi">Envoi de la demande…</string>
+    <string name="demande_envoyee">Demande envoyée — en attente de réponse sur le panel parental.</string>
+    <string name="demande_texte">Peux-tu m\'accorder plus de temps ? (vidéo : %1$s)</string>
 </resources>

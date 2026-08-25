@@ -1,3 +1,5 @@
+import hashlib
+import html
 import json
 import mimetypes
 import os
@@ -32,6 +34,83 @@ MIMES_SUP = {
 CHUNK = 512 * 1024
 
 LOG_FILE = os.path.join(SCRIPT_DIR, "serveur_log.txt")
+
+ETAT_FILE = os.path.join(SCRIPT_DIR, "etat_parental.json")
+VERROU_ETAT = threading.Lock()
+
+
+def etat_defaut():
+    return {
+        "code": "123456",
+        "bloque": False,
+        "limite": 3600,
+        "bonus": 0,
+        "consomme": 0,
+        "jour": time.strftime("%Y-%m-%d"),
+        "vus": {},
+        "demandes": [],
+        "prochain_id": 1,
+    }
+
+
+def charger_etat():
+    etat = etat_defaut()
+    try:
+        with open(ETAT_FILE, "r", encoding="utf-8") as f:
+            etat.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+    return etat
+
+
+def sauver_etat(etat):
+    tmp = ETAT_FILE + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(etat, f, ensure_ascii=False)
+        os.replace(tmp, ETAT_FILE)
+    except OSError:
+        pass
+
+
+def nouveau_jour(etat):
+    aujourd_hui = time.strftime("%Y-%m-%d")
+    if etat.get("jour") != aujourd_hui:
+        etat["jour"] = aujourd_hui
+        etat["consomme"] = 0
+        etat["bonus"] = 0
+
+
+def calculer_bloquage(etat):
+    if etat.get("bloque"):
+        return True, "manuel", 0
+    limite = int(etat.get("limite", 0))
+    if limite > 0:
+        restant = limite + int(etat.get("bonus", 0)) - int(etat.get("consomme", 0))
+        if restant <= 0:
+            return True, "temps", 0
+        return False, "", restant
+    return False, "", 999999
+
+
+def jeton(code):
+    return hashlib.sha256(("localtube-panel-" + code).encode("utf-8")).hexdigest()[:24]
+
+
+def fmt_duree(sec):
+    sec = int(sec)
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    if h > 0:
+        return "%dh%02d" % (h, m)
+    return "%d min" % m
+
+
+def fmt_date(ts):
+    try:
+        return time.strftime("%d/%m/%Y %H:%M", time.localtime(int(ts)))
+    except (ValueError, TypeError, OSError):
+        return "?"
 
 
 def ecrire(texte):
@@ -83,10 +162,17 @@ def lister_videos():
         except OSError:
             taille = 0
             mtime = 0
+        version = mtime
+        try:
+            mini = chemin_miniature(relatif)
+            if os.path.isfile(mini):
+                version = int(os.path.getmtime(mini))
+        except OSError:
+            pass
         resultats.append({
             "title": os.path.basename(chemin),
             "url": "/video/" + urllib.parse.quote(relatif),
-            "thumb": "/thumb/" + urllib.parse.quote(relatif) + "?v=" + str(mtime),
+            "thumb": "/thumb/" + urllib.parse.quote(relatif) + "?v=" + str(version),
             "size": taille,
         })
     return resultats
@@ -97,32 +183,96 @@ def chemin_miniature(relatif):
     return os.path.join(MINIATURES_DIR, nom)
 
 
+def options_creation():
+    return subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+
+
+def duree_video(video_abs):
+    try:
+        cmd = [FFMPEG, "-hide_banner", "-i", video_abs]
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=20, creationflags=options_creation())
+        m = re.search(r"Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)",
+                      (r.stderr or "") + (r.stdout or ""))
+        if not m:
+            return 0.0
+        return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+    except Exception:
+        return 0.0
+
+
+def luminance_moyenne(image_jpg, creation):
+    try:
+        cmd = [FFMPEG, "-hide_banner", "-nostats", "-i", image_jpg,
+               "-vf", "signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+               "-f", "null", "-"]
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=20, creationflags=creation)
+        m = re.search(r"YAVG=([\d.]+)", (r.stderr or "") + (r.stdout or ""))
+        return float(m.group(1)) if m else -1.0
+    except Exception:
+        return -1.0
+
+
 def generer_miniature(video_abs, miniature_abs):
     if not FFMPEG:
         return False
     os.makedirs(MINIATURES_DIR, exist_ok=True)
-    tmp = miniature_abs + ".part.jpg"
-    creation = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-    for cherche in (["-ss", "3"], ["-ss", "1"], []):
-        cmd = [FFMPEG, "-y", "-loglevel", "error"] + cherche + [
-            "-i", video_abs, "-frames:v", "1",
-            "-vf", "scale=480:-2", "-q:v", "6", tmp,
-        ]
+    creation = options_creation()
+    tmp = "%s.part%d.jpg" % (miniature_abs, threading.get_ident())
+    sauvetage = None
+
+    duree = duree_video(video_abs)
+    essais = []
+    if duree > 20:
+        essais.append(min(int(duree * 0.10), 600))
+        essais.append(min(int(duree * 0.35), 900))
+        essais.append(min(int(duree * 0.65), 1200))
+    elif duree > 2:
+        essais.append(max(1, int(duree * 0.5)))
+    else:
+        essais.append(5)
+    essais.extend([3, 1, 0])
+
+    deja_vus = set()
+    for seconde in essais:
+        if seconde < 0 or seconde in deja_vus:
+            continue
+        deja_vus.add(seconde)
+        cherche = ["-ss", str(seconde)] if seconde > 0 else []
+        cmd = ([FFMPEG, "-y", "-loglevel", "error"] + cherche +
+               ["-i", video_abs, "-frames:v", "1",
+                "-vf", "scale=480:-2", "-q:v", "6", tmp])
         try:
-            r = subprocess.run(
-                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                timeout=45, creationflags=creation,
-            )
+            r = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL,
+                               timeout=45, creationflags=creation)
         except Exception:
             r = None
-        if r is not None and r.returncode == 0 and os.path.isfile(tmp):
+        if r is None or r.returncode != 0 or not os.path.isfile(tmp):
+            continue
+
+        lum = luminance_moyenne(tmp, creation)
+        if lum < 0 or lum >= 18:
             os.replace(tmp, miniature_abs)
             return True
-    try:
-        if os.path.exists(tmp):
-            os.remove(tmp)
-    except OSError:
-        pass
+        if sauvetage is None:
+            sauvetage = tmp + ".secours"
+            try:
+                os.replace(tmp, sauvetage)
+            except OSError:
+                sauvetage = None
+
+    if sauvetage is not None and os.path.isfile(sauvetage):
+        os.replace(sauvetage, miniature_abs)
+        return True
+
+    for residu in (tmp, sauvetage):
+        try:
+            if residu and os.path.exists(residu):
+                os.remove(residu)
+        except OSError:
+            pass
     return False
 
 
@@ -176,7 +326,174 @@ class Handler(BaseHTTPRequestHandler):
             self.servir_miniature(chemin[len("/thumb/"):], head=head)
             return
 
+        if chemin == "/api/parental":
+            self.api_parental_etat()
+            return
+
+        if chemin == "/panel":
+            self.panel_page()
+            return
+
         self.send_error(404)
+
+    def do_POST(self):
+        chemin = urllib.parse.urlparse(self.path).path
+        if chemin == "/api/parental/tick":
+            self.api_parental_tick()
+        elif chemin == "/api/parental/demande":
+            self.api_parental_demande()
+        elif chemin == "/panel/login":
+            self.panel_login()
+        elif chemin == "/panel/action":
+            self.panel_action()
+        else:
+            self.send_error(404)
+
+    def lire_params(self):
+        try:
+            longueur = int(self.headers.get("Content-Length", 0) or 0)
+        except ValueError:
+            longueur = 0
+        corps = self.rfile.read(longueur).decode("utf-8", "replace") if longueur else ""
+        return urllib.parse.parse_qs(corps)
+
+    def envoyer_json(self, obj):
+        corps = json.dumps(obj).encode("utf-8")
+        self.envoyer_entetes(200, "application/json; charset=utf-8", len(corps))
+        self.wfile.write(corps)
+
+    def rediriger(self, vers, cookie=None):
+        self.send_response(303)
+        self.send_header("Location", vers)
+        self.send_header("Content-Length", "0")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+
+    def etat_public(self, etat, raison="", restant=0):
+        bloque, raison_calc, restant_calc = calculer_bloquage(etat)
+        return {
+            "bloque": bloque,
+            "raison": raison_calc or raison,
+            "restant": restant_calc,
+            "limite": int(etat.get("limite", 0)),
+            "consomme": int(etat.get("consomme", 0)),
+        }
+
+    def api_parental_etat(self):
+        with VERROU_ETAT:
+            etat = charger_etat()
+            nouveau_jour(etat)
+            sauver_etat(etat)
+            self.envoyer_json(self.etat_public(etat))
+
+    def api_parental_tick(self):
+        p = self.lire_params()
+        try:
+            sec = min(max(int(p.get("sec", ["0"])[0] or 0), 0), 120)
+        except ValueError:
+            sec = 0
+        titre = (p.get("video", [""])[0] or "")[:200]
+        with VERROU_ETAT:
+            etat = charger_etat()
+            nouveau_jour(etat)
+            bloque, _, _ = calculer_bloquage(etat)
+            if not bloque and sec > 0:
+                etat["consomme"] += sec
+                if titre:
+                    vu = etat["vus"].setdefault(titre, {"secondes": 0, "dernier": 0})
+                    vu["secondes"] += sec
+                    vu["dernier"] = int(time.time())
+                sauver_etat(etat)
+            self.envoyer_json(self.etat_public(etat))
+
+    def api_parental_demande(self):
+        p = self.lire_params()
+        texte = (p.get("texte", [""])[0] or "").strip()[:300]
+        with VERROU_ETAT:
+            etat = charger_etat()
+            demande = {
+                "id": int(etat.get("prochain_id", 1)),
+                "date": time.strftime("%d/%m %H:%M"),
+                "ts": int(time.time()),
+                "texte": texte,
+                "statut": "en_attente",
+            }
+            etat["prochain_id"] = demande["id"] + 1
+            etat["demandes"].append(demande)
+            etat["demandes"] = etat["demandes"][-50:]
+            sauver_etat(etat)
+        self.envoyer_json({"ok": True})
+
+    def panel_connecte(self, etat):
+        m = re.search(r"locatube_panel=([0-9a-f]+)", self.headers.get("Cookie", ""))
+        return bool(m and m.group(1) == jeton(str(etat.get("code", ""))))
+
+    def panel_page(self):
+        with VERROU_ETAT:
+            etat = charger_etat()
+        if not self.panel_connecte(etat):
+            self.html_reponse(page_login_html())
+            return
+        self.html_reponse(construire_tableau(etat))
+
+    def html_reponse(self, contenu):
+        corps = contenu.encode("utf-8")
+        self.envoyer_entetes(200, "text/html; charset=utf-8", len(corps))
+        self.wfile.write(corps)
+
+    def panel_login(self):
+        p = self.lire_params()
+        code_saisi = (p.get("code", [""])[0] or "").strip()
+        with VERROU_ETAT:
+            etat = charger_etat()
+        if code_saisi == str(etat.get("code", "")):
+            self.rediriger("/panel", "locatube_panel=%s; Path=/; HttpOnly" % jeton(code_saisi))
+        else:
+            self.html_reponse(page_login_html("<p class='erreur'>Code incorrect.</p>"))
+
+    def panel_action(self):
+        p = self.lire_params()
+        action = p.get("action", [""])[0]
+        with VERROU_ETAT:
+            etat = charger_etat()
+            if not self.panel_connecte(etat):
+                self.rediriger("/panel")
+                return
+            nouveau_jour(etat)
+            if action == "blocage":
+                etat["bloque"] = p.get("etat", [""])[0] == "on"
+            elif action == "limite":
+                try:
+                    minutes = max(0, int(p.get("minutes", ["0"])[0]))
+                except ValueError:
+                    minutes = 0
+                etat["limite"] = minutes * 60
+            elif action == "reset_jour":
+                etat["consomme"] = 0
+                etat["bonus"] = 0
+            elif action == "vider_histo":
+                etat["vus"] = {}
+            elif action in ("demande_ok", "demande_non"):
+                try:
+                    ident = int(p.get("id", ["0"])[0])
+                except ValueError:
+                    ident = 0
+                for d in etat.get("demandes", []):
+                    if d.get("id") == ident and d.get("statut") == "en_attente":
+                        if action == "demande_ok":
+                            d["statut"] = "acceptee"
+                            try:
+                                bonus_min = max(1, min(600, int(p.get("minutes", ["15"])[0])))
+                            except ValueError:
+                                bonus_min = 15
+                            etat["bonus"] = int(etat.get("bonus", 0)) + bonus_min * 60
+                            d["reponse"] = "+%d min" % bonus_min
+                        else:
+                            d["statut"] = "refusee"
+                        break
+            sauver_etat(etat)
+        self.rediriger("/panel")
 
     def envoyer_entetes(self, code, type_contenu, longueur, extra=None):
         self.send_response(code)
@@ -291,6 +608,134 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(donnees)
 
 
+CSS_PANEL = """
+body{background:#121212;color:#eee;font-family:Segoe UI,Arial,sans-serif;margin:0;padding:20px}
+.cont{max-width:760px;margin:0 auto}
+h1{font-size:22px;color:#ff6b6b} h2{font-size:16px;border-bottom:1px solid #333;padding-bottom:6px}
+.carte{background:#1e1e1e;border-radius:10px;padding:16px;margin-bottom:16px}
+.ligne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+.badge{padding:4px 12px;border-radius:14px;font-weight:bold;font-size:13px}
+.vert{background:#1b5e20}.rouge{background:#b71c1c}
+button,input[type=number],input[type=password]{background:#2a2a2a;color:#eee;border:1px solid #444;
+ border-radius:6px;padding:8px 14px;font-size:14px}
+button{cursor:pointer} button:hover{background:#3a3a3a}
+button.rouge{background:#b71c1c;border-color:#b71c1c} button.vert{background:#1b5e20;border-color:#1b5e20}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:7px 6px;text-align:left;border-bottom:1px solid #2a2a2a}
+th{color:#999;font-weight:normal}
+.erreur{color:#ff8a80}.attente{color:#ffd54f}.okc{color:#81c784}.refus{color:#e57373}
+.temps{font-size:26px;font-weight:bold;margin:6px 0}
+.demande{border:1px solid #333;border-radius:8px;padding:10px;margin:8px 0}
+.petit{color:#999;font-size:12px}
+"""
+
+PAGE_LOGIN = """<!doctype html><html lang=fr><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>LocalTube - Panel</title><style>__CSS__</style></head><body><div class=cont>
+<h1>LocalTube - Panel parental</h1>
+<div class=carte><form method=post action=/panel/login>
+<label>Code d'acces :</label><br><br>
+<input type=password name=code autofocus autocomplete=off>
+<button type=submit>Entrer</button>
+__ERREUR__</form></div></div></body></html>"""
+
+
+def page_login_html(erreur=""):
+    return PAGE_LOGIN.replace("__CSS__", CSS_PANEL).replace("__ERREUR__", erreur)
+
+
+def construire_tableau(etat):
+    bloque, raison, restant = calculer_bloquage(etat)
+    if bloque:
+        badge = "<span class='badge rouge'>BLOQUE (%s)</span>" % (
+            "manuel" if raison == "manuel" else "temps ecoule")
+    else:
+        texte_restant = "illimite" if int(etat.get("limite", 0)) == 0 \
+            else fmt_duree(restant) + " restantes"
+        badge = "<span class='badge vert'>AUTORISE</span> <span class='temps'>%s</span>" % texte_restant
+
+    bouton_blocage = ("<form style=display:inline method=post action=/panel/action>"
+                      "<input type=hidden name=action value=blocage>"
+                      "<input type=hidden name=etat value=%s>"
+                      "<button class='%s'>%s</button></form>") % (
+        "off" if etat.get("bloque") else "on",
+        "vert" if etat.get("bloque") else "rouge",
+        "Debloquer" if etat.get("bloque") else "Bloquer tout")
+
+    demandes_html = ""
+    liste = sorted(etat.get("demandes", []), key=lambda d: d.get("id", 0), reverse=True)
+    for d in liste:
+        statut = d.get("statut")
+        if statut == "en_attente":
+            suite = ("<form style=display:inline method=post action=/panel/action>"
+                     "<input type=hidden name=action value=demande_ok>"
+                     "<input type=hidden name=id value=%d>"
+                     "<input type=number name=minutes value=15 min=1 max=600 style=width:70px> min "
+                     "<button class=vert>Accepter</button></form> "
+                     "<form style=display:inline method=post action=/panel/action>"
+                     "<input type=hidden name=action value=demande_non>"
+                     "<input type=hidden name=id value=%d>"
+                     "<button class=rouge>Refuser</button></form>") % (d["id"], d["id"])
+            classe = "attente"
+            libelle = "EN ATTENTE"
+        elif statut == "acceptee":
+            suite = ""
+            classe = "okc"
+            libelle = "ACCEPTEE %s" % d.get("reponse", "")
+        else:
+            suite = ""
+            classe = "refus"
+            libelle = "REFUSEE"
+        textes = html.escape(d.get("texte", ""))
+        demandes_html += ("<div class=demande><span class='%s'>[%s]</span> "
+                          "<span class=petit>%s</span><br>%s<br>%s</div>") % (
+            classe, libelle, html.escape(str(d.get("date", ""))), textes, suite)
+    if not liste:
+        demandes_html = "<p class=petit>Aucune demande.</p>"
+
+    lignes_histo = ""
+    vus = sorted(etat.get("vus", {}).items(), key=lambda kv: kv[1].get("dernier", 0), reverse=True)
+    for titre, infos in vus:
+        lignes_histo += ("<tr><td>%s</td><td>%s</td><td>%s</td></tr>") % (
+            html.escape(titre), fmt_duree(infos.get("secondes", 0)),
+            fmt_date(infos.get("dernier", 0)))
+    if not lignes_histo:
+        lignes_histo = "<tr><td colspan=3 class=petit>Aucune video vue pour le moment.</td></tr>"
+
+    return """<!doctype html><html lang=fr><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>LocalTube - Panel</title><style>%s</style></head><body><div class=cont>
+<h1>LocalTube - Panel parental</h1>
+
+<div class=carte><h2>Etat</h2>%s
+<div class=ligne>
+%s
+<form style=display:inline method=post action=/panel/action>
+<input type=hidden name=action value=limite>
+Limite journaliere : <input type=number name=minutes value=%d min=0 max=1440 style=width:90px> min
+<button>Enregistrer</button></form>
+<form style=display:inline method=post action=/panel/action>
+<input type=hidden name=action value=reset_jour><button>Reinitialiser le jour</button></form>
+</div>
+<p class=petit>Mettre 0 = illimite. Consomme aujourd'hui : %s</p></div>
+
+<div class=carte><h2>Demandes de temps</h2>%s</div>
+
+<div class=carte><h2>Historique des videos vues</h2>
+<table><tr><th>Video</th><th>Temps total</th><th>Derniere fois</th></tr>
+%s</table>
+<form method=post action=/panel/action style=margin-top:10px>
+<input type=hidden name=action value=vider_histo>
+<button class=rouge>Vider l'historique</button></form></div>
+
+<p class=petit>LocalTube - panel reserve aux parents.</p>
+</div></body></html>""" % (
+        CSS_PANEL, badge, bouton_blocage,
+        int(etat.get("limite", 0)) // 60,
+        fmt_duree(etat.get("consomme", 0)),
+        demandes_html, lignes_histo)
+
+
 def adresses_locales():
     adresses = set()
     try:
@@ -346,6 +791,7 @@ def principal():
     ecrire(" Sur le telephone, entrez une de ces adresses :")
     for ip in adresses_locales():
         ecrire("   http://%s:%d" % (ip, PORT))
+        ecrire("   Panel parental : http://%s:%d/panel" % (ip, PORT))
     ecrire("=" * 60)
     threading.Thread(target=pre_generer, daemon=True).start()
     if sys.stdin is None:
