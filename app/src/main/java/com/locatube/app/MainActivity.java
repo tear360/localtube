@@ -42,9 +42,13 @@ public class MainActivity extends Activity {
     public static final String EXTRA_URL = "url";
     public static final String EXTRA_REL = "rel";
     public static final String EXTRA_TITLE = "title";
+    public static final String EXTRA_PROFIL = "profil";
 
     public static final String PREFS = "locatube";
     private static final String PREF_SERVER = "server";
+    public static final String CURRENT_PROFILE = "current_profile";
+
+    private static final int REQ_PROfil = 1;
 
     private final List<Video> allVideos = new ArrayList<>();
     private final List<Video> shownVideos = new ArrayList<>();
@@ -60,6 +64,8 @@ public class MainActivity extends Activity {
     private TextView barreTemps;
     private ProgressBar barreProgress;
     private String barreRel = "";
+
+    private String profilActif = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,9 +122,13 @@ public class MainActivity extends Activity {
             }
         });
 
+        profilActif = prefs().getString(CURRENT_PROFILE, "");
         if (serverBase().isEmpty()) {
             promptForServer();
+        } else if (profilActif.isEmpty()) {
+            ouvrirChoixProfil(MODE_CREATE);
         } else {
+            setTitle(getString(R.string.app_name) + " — " + profilActif);
             fetchVideos();
         }
         UpdateChecker.check(this);
@@ -130,26 +140,48 @@ public class MainActivity extends Activity {
         majBarreLecture();
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_PROfil) {
+            profilActif = prefs().getString(CURRENT_PROFILE, "");
+            if (profilActif.isEmpty()) {
+                finish();
+                return;
+            }
+            setTitle(getString(R.string.app_name) + " — " + profilActif);
+            fetchVideos();
+        }
+    }
+
+    private void ouvrirChoixProfil(String mode) {
+        Intent it = new Intent(this, ProfileActivity.class);
+        it.putExtra(ProfileActivity.EXTRA_MODE, mode);
+        startActivityForResult(it, REQ_PROfil);
+    }
+
     private void ouvrirVideo(String relatif, String titre) {
         Intent it = new Intent(this, PlayerActivity.class);
         it.putExtra(EXTRA_URL, serverBase() + relatif);
         it.putExtra(EXTRA_REL, relatif);
         it.putExtra(EXTRA_TITLE, titre);
+        it.putExtra(EXTRA_PROFIL, profilActif);
         startActivity(it);
     }
 
     private void majBarreLecture() {
         SharedPreferences p = prefs();
-        String rel = p.getString("last_rel", "");
-        int pos = p.getInt("last_pos", 0);
-        int dur = p.getInt("last_dur", 0);
+        String prefix = prefProfil();
+        String rel = p.getString(prefix + "last_rel", "");
+        int pos = p.getInt(prefix + "last_pos", 0);
+        int dur = p.getInt(prefix + "last_dur", 0);
         if (rel.isEmpty() || pos <= 0 || serverBase().isEmpty()) {
             barreRel = "";
             barreLecture.setVisibility(View.GONE);
             return;
         }
         barreRel = rel;
-        barreTitre.setText(p.getString("last_title", ""));
+        barreTitre.setText(p.getString(prefix + "last_title", ""));
         barreTemps.setText(formatTime(pos) + " / " + formatTime(dur));
         if (dur > 0) {
             barreProgress.setProgress((int) (pos * 100L / dur));
@@ -172,6 +204,13 @@ public class MainActivity extends Activity {
 
     private SharedPreferences prefs() {
         return getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    public String prefProfil() {
+        if (profilActif.isEmpty()) {
+            return "";
+        }
+        return "p_" + profilActif + "_";
     }
 
     private String serverBase() {
@@ -200,7 +239,11 @@ public class MainActivity extends Activity {
                 .setView(container)
                 .setPositiveButton(android.R.string.ok, (d, w) -> {
                     prefs().edit().putString(PREF_SERVER, input.getText().toString().trim()).apply();
-                    fetchVideos();
+                    if (profilActif.isEmpty()) {
+                        ouvrirChoixProfil(MODE_CREATE);
+                    } else {
+                        fetchVideos();
+                    }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
                 .show();
@@ -241,7 +284,8 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if (err == null) {
                     emptyView.setText(R.string.empty_none);
-                    setTitle(getString(R.string.app_name) + " \u2013 " + allVideos.size());
+                    String nomProfil = profilActif.isEmpty() ? "" : " — " + profilActif;
+                    setTitle(getString(R.string.app_name) + nomProfil + " — " + allVideos.size());
                 } else {
                     setTitle(R.string.app_name);
                     emptyView.setText(R.string.empty_error);
@@ -268,6 +312,7 @@ public class MainActivity extends Activity {
     public boolean onCreateOptionsMenu(Menu menu) {
         menu.add(0, 1, 0, R.string.menu_server);
         menu.add(0, 2, 0, R.string.menu_refresh);
+        menu.add(0, 3, 0, R.string.menu_profiles);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -279,6 +324,10 @@ public class MainActivity extends Activity {
         }
         if (item.getItemId() == 2) {
             fetchVideos();
+            return true;
+        }
+        if (item.getItemId() == 3) {
+            ouvrirChoixProfil(MODE_MANAGE);
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -430,4 +479,7 @@ public class MainActivity extends Activity {
         }
         return String.format(Locale.US, "%.2f Go", mb / 1024f);
     }
+
+    private static final String MODE_CREATE = ProfileActivity.MODE_CREATE;
+    private static final String MODE_MANAGE = ProfileActivity.MODE_MANAGE;
 }

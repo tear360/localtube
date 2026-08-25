@@ -39,9 +39,8 @@ ETAT_FILE = os.path.join(SCRIPT_DIR, "etat_parental.json")
 VERROU_ETAT = threading.Lock()
 
 
-def etat_defaut():
+def profil_defaut():
     return {
-        "code": "123456",
         "bloque": False,
         "limite": 3600,
         "bonus": 0,
@@ -49,8 +48,30 @@ def etat_defaut():
         "jour": time.strftime("%Y-%m-%d"),
         "vus": {},
         "demandes": [],
-        "prochain_id": 1,
     }
+
+
+def etat_defaut():
+    return {
+        "code": "123456",
+        "prochain_id": 1,
+        "profils": {},
+    }
+
+
+def migrer_si_ancien(etat):
+    if "profils" not in etat:
+        etat["profils"] = {}
+    ancien_plat = "consomme" in etat and "profils" in etat and not etat["profils"]
+    if ancien_plat or ("consomme" in etat and "profils" not in etat):
+        profil = profil_defaut()
+        for cle in ("bloque", "limite", "bonus", "consomme", "jour", "vus", "demandes"):
+            if cle in etat:
+                profil[cle] = etat.pop(cle)
+        etat["profils"]["Profil par defaut"] = profil
+    for cle in list(etat.keys()):
+        if cle not in ("code", "prochain_id", "profils"):
+            etat.pop(cle, None)
 
 
 def charger_etat():
@@ -60,6 +81,7 @@ def charger_etat():
             etat.update(json.load(f))
     except (OSError, ValueError):
         pass
+    migrer_si_ancien(etat)
     return etat
 
 
@@ -73,20 +95,25 @@ def sauver_etat(etat):
         pass
 
 
-def nouveau_jour(etat):
+def nouveau_jour_profil(profil):
     aujourd_hui = time.strftime("%Y-%m-%d")
-    if etat.get("jour") != aujourd_hui:
-        etat["jour"] = aujourd_hui
-        etat["consomme"] = 0
-        etat["bonus"] = 0
+    if profil.get("jour") != aujourd_hui:
+        profil["jour"] = aujourd_hui
+        profil["consomme"] = 0
+        profil["bonus"] = 0
 
 
-def calculer_bloquage(etat):
-    if etat.get("bloque"):
+def nouveau_jour(etat):
+    for profil in etat.get("profils", {}).values():
+        nouveau_jour_profil(profil)
+
+
+def calculer_bloquage_profil(profil):
+    if profil.get("bloque"):
         return True, "manuel", 0
-    limite = int(etat.get("limite", 0))
+    limite = int(profil.get("limite", 0))
     if limite > 0:
-        restant = limite + int(etat.get("bonus", 0)) - int(etat.get("consomme", 0))
+        restant = limite + int(profil.get("bonus", 0)) - int(profil.get("consomme", 0))
         if restant <= 0:
             return True, "temps", 0
         return False, "", restant
@@ -310,6 +337,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def repondre(self, head=False):
         chemin = urllib.parse.urlparse(self.path).path
+        params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
 
         if chemin in ("/", "/api/videos"):
             corps = json.dumps({"videos": lister_videos()}, ensure_ascii=False).encode("utf-8")
@@ -327,11 +355,16 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if chemin == "/api/parental":
-            self.api_parental_etat()
+            self.api_parental_etat(params)
+            return
+
+        if chemin == "/api/profils":
+            self.api_profils_liste()
             return
 
         if chemin == "/panel":
-            self.panel_page()
+            profil_sel = params.get("profil", [""])[0]
+            self.panel_page(profil_sel)
             return
 
         self.send_error(404)
@@ -342,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
             self.api_parental_tick()
         elif chemin == "/api/parental/demande":
             self.api_parental_demande()
+        elif chemin == "/api/profils":
+            self.api_profils_creer()
         elif chemin == "/panel/login":
             self.panel_login()
         elif chemin == "/panel/action":
@@ -370,22 +405,53 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
 
-    def etat_public(self, etat, raison="", restant=0):
-        bloque, raison_calc, restant_calc = calculer_bloquage(etat)
+    def profil_etat_public(self, profil):
+        bloque, raison, restant = calculer_bloquage_profil(profil)
         return {
             "bloque": bloque,
-            "raison": raison_calc or raison,
-            "restant": restant_calc,
-            "limite": int(etat.get("limite", 0)),
-            "consomme": int(etat.get("consomme", 0)),
+            "raison": raison,
+            "restant": restant,
+            "limite": int(profil.get("limite", 0)),
+            "consomme": int(profil.get("consomme", 0)),
         }
 
-    def api_parental_etat(self):
+    def api_profils_liste(self):
+        with VERROU_ETAT:
+            etat = charger_etat()
+            noms = list(etat.get("profils", {}).keys())
+        self.envoyer_json({"profils": noms})
+
+    def api_profils_creer(self):
+        p = self.lire_params()
+        nom = (p.get("nom", [""])[0] or "").strip()[:50]
+        if not nom:
+            self.envoyer_json({"erreur": "nom requis"})
+            return
+        with VERROU_ETAT:
+            etat = charger_etat()
+            if nom not in etat["profils"]:
+                etat["profils"][nom] = profil_defaut()
+                sauver_etat(etat)
+        self.envoyer_json({"ok": True, "nom": nom})
+
+    def api_parental_etat(self, params):
+        profil_nom = params.get("profil", [""])[0]
         with VERROU_ETAT:
             etat = charger_etat()
             nouveau_jour(etat)
+            profil = etat.get("profils", {}).get(profil_nom)
+            if profil is None:
+                profil = profil_defaut()
+                sauver_etat(etat)
+                self.envoyer_json({
+                    "bloque": False, "raison": "", "restant": 999999,
+                    "limite": 3600, "consomme": 0, "nouveau": True,
+                })
+                return
             sauver_etat(etat)
-            self.envoyer_json(self.etat_public(etat))
+            rep = self.profil_etat_public(profil)
+            rep["nouveau"] = False
+            self.envoyer_json(rep)
 
     def api_parental_tick(self):
         p = self.lire_params()
@@ -394,34 +460,45 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             sec = 0
         titre = (p.get("video", [""])[0] or "")[:200]
+        profil_nom = (p.get("profil", [""])[0] or "")[:50]
         with VERROU_ETAT:
             etat = charger_etat()
             nouveau_jour(etat)
-            bloque, _, _ = calculer_bloquage(etat)
+            profil = etat.get("profils", {}).get(profil_nom)
+            if profil is None:
+                profil = profil_defaut()
+                etat["profils"][profil_nom] = profil
+            bloque, _, _ = calculer_bloquage_profil(profil)
             if not bloque and sec > 0:
-                etat["consomme"] += sec
+                profil["consomme"] += sec
                 if titre:
-                    vu = etat["vus"].setdefault(titre, {"secondes": 0, "dernier": 0})
+                    vu = profil["vus"].setdefault(titre, {"secondes": 0, "dernier": 0})
                     vu["secondes"] += sec
                     vu["dernier"] = int(time.time())
                 sauver_etat(etat)
-            self.envoyer_json(self.etat_public(etat))
+            self.envoyer_json(self.profil_etat_public(profil))
 
     def api_parental_demande(self):
         p = self.lire_params()
         texte = (p.get("texte", [""])[0] or "").strip()[:300]
+        profil_nom = (p.get("profil", [""])[0] or "")[:50]
         with VERROU_ETAT:
             etat = charger_etat()
+            profil = etat.get("profils", {}).get(profil_nom)
+            if profil is None:
+                profil = profil_defaut()
+                etat["profils"][profil_nom] = profil
             demande = {
                 "id": int(etat.get("prochain_id", 1)),
+                "profil": profil_nom,
                 "date": time.strftime("%d/%m %H:%M"),
                 "ts": int(time.time()),
                 "texte": texte,
                 "statut": "en_attente",
             }
             etat["prochain_id"] = demande["id"] + 1
-            etat["demandes"].append(demande)
-            etat["demandes"] = etat["demandes"][-50:]
+            profil["demandes"].append(demande)
+            profil["demandes"] = profil["demandes"][-50:]
             sauver_etat(etat)
         self.envoyer_json({"ok": True})
 
@@ -429,13 +506,13 @@ class Handler(BaseHTTPRequestHandler):
         m = re.search(r"locatube_panel=([0-9a-f]+)", self.headers.get("Cookie", ""))
         return bool(m and m.group(1) == jeton(str(etat.get("code", ""))))
 
-    def panel_page(self):
+    def panel_page(self, profil_sel=""):
         with VERROU_ETAT:
             etat = charger_etat()
         if not self.panel_connecte(etat):
             self.html_reponse(page_login_html())
             return
-        self.html_reponse(construire_tableau(etat))
+        self.html_reponse(construire_tableau(etat, profil_sel))
 
     def html_reponse(self, contenu):
         corps = contenu.encode("utf-8")
@@ -455,31 +532,49 @@ class Handler(BaseHTTPRequestHandler):
     def panel_action(self):
         p = self.lire_params()
         action = p.get("action", [""])[0]
+        profil_nom = (p.get("profil", [""])[0] or "")
         with VERROU_ETAT:
             etat = charger_etat()
             if not self.panel_connecte(etat):
                 self.rediriger("/panel")
                 return
             nouveau_jour(etat)
+
+            profil = etat.get("profils", {}).get(profil_nom)
+
+            if action == "nouveau_profil":
+                nouveau_nom = (p.get("nouveau_nom", [""])[0] or "").strip()[:50]
+                if nouveau_nom and nouveau_nom not in etat["profils"]:
+                    etat["profils"][nouveau_nom] = profil_defaut()
+                    sauver_etat(etat)
+                    self.rediriger("/panel?profil=" + urllib.parse.quote(nouveau_nom))
+                    return
+                self.rediriger("/panel")
+                return
+
+            if profil is None:
+                self.rediriger("/panel")
+                return
+
             if action == "blocage":
-                etat["bloque"] = p.get("etat", [""])[0] == "on"
+                profil["bloque"] = p.get("etat", [""])[0] == "on"
             elif action == "limite":
                 try:
                     minutes = max(0, int(p.get("minutes", ["0"])[0]))
                 except ValueError:
                     minutes = 0
-                etat["limite"] = minutes * 60
+                profil["limite"] = minutes * 60
             elif action == "reset_jour":
-                etat["consomme"] = 0
-                etat["bonus"] = 0
+                profil["consomme"] = 0
+                profil["bonus"] = 0
             elif action == "vider_histo":
-                etat["vus"] = {}
+                profil["vus"] = {}
             elif action in ("demande_ok", "demande_non"):
                 try:
                     ident = int(p.get("id", ["0"])[0])
                 except ValueError:
                     ident = 0
-                for d in etat.get("demandes", []):
+                for d in profil.get("demandes", []):
                     if d.get("id") == ident and d.get("statut") == "en_attente":
                         if action == "demande_ok":
                             d["statut"] = "acceptee"
@@ -487,13 +582,13 @@ class Handler(BaseHTTPRequestHandler):
                                 bonus_min = max(1, min(600, int(p.get("minutes", ["15"])[0])))
                             except ValueError:
                                 bonus_min = 15
-                            etat["bonus"] = int(etat.get("bonus", 0)) + bonus_min * 60
+                            profil["bonus"] = int(profil.get("bonus", 0)) + bonus_min * 60
                             d["reponse"] = "+%d min" % bonus_min
                         else:
                             d["statut"] = "refusee"
                         break
             sauver_etat(etat)
-        self.rediriger("/panel")
+        self.rediriger("/panel?profil=" + urllib.parse.quote(profil_nom))
 
     def envoyer_entetes(self, code, type_contenu, longueur, extra=None):
         self.send_response(code)
@@ -616,7 +711,7 @@ h1{font-size:22px;color:#ff6b6b} h2{font-size:16px;border-bottom:1px solid #333;
 .ligne{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
 .badge{padding:4px 12px;border-radius:14px;font-weight:bold;font-size:13px}
 .vert{background:#1b5e20}.rouge{background:#b71c1c}
-button,input[type=number],input[type=password]{background:#2a2a2a;color:#eee;border:1px solid #444;
+button,input[type=number],input[type=password],input[type=text]{background:#2a2a2a;color:#eee;border:1px solid #444;
  border-radius:6px;padding:8px 14px;font-size:14px}
 button{cursor:pointer} button:hover{background:#3a3a3a}
 button.rouge{background:#b71c1c;border-color:#b71c1c} button.vert{background:#1b5e20;border-color:#1b5e20}
@@ -627,6 +722,10 @@ th{color:#999;font-weight:normal}
 .temps{font-size:26px;font-weight:bold;margin:6px 0}
 .demande{border:1px solid #333;border-radius:8px;padding:10px;margin:8px 0}
 .petit{color:#999;font-size:12px}
+.onglet{display:inline-block;padding:6px 16px;border-radius:8px 8px 0 0;background:#2a2a2a;color:#999;
+ cursor:pointer;text-decoration:none;font-size:14px;margin-right:2px}
+.onglet_actif{background:#ff6b6b;color:#fff}
+.onglet_ajout{background:#1b5e20;color:#fff}
 """
 
 PAGE_LOGIN = """<!doctype html><html lang=fr><head><meta charset=utf-8>
@@ -644,38 +743,80 @@ def page_login_html(erreur=""):
     return PAGE_LOGIN.replace("__CSS__", CSS_PANEL).replace("__ERREUR__", erreur)
 
 
-def construire_tableau(etat):
-    bloque, raison, restant = calculer_bloquage(etat)
+def construire_tableau(etat, profil_sel=""):
+    profils = etat.get("profils", {})
+    noms = list(profils.keys())
+
+    if not profil_sel and noms:
+        profil_sel = noms[0]
+    elif not profil_sel and not noms:
+        profil_nom = ""
+        profil = profil_defaut()
+        onglets_html = ""
+    else:
+        profil_nom = profil_sel
+
+    if profil_sel and profil_sel in profils:
+        profil = profils[profil_sel]
+        profil_nom = profil_sel
+    elif not noms:
+        profil = profil_defaut()
+        profil_nom = ""
+    else:
+        profil_nom = noms[0]
+        profil = profils[profil_nom]
+
+    onglets_html = ""
+    for n in noms:
+        classe = "onglet_actif" if n == profil_nom else "onglet"
+        onglets_html += ("<a class='%s' href='/panel?profil=%s'>%s</a>") % (
+            classe, urllib.parse.quote(n), html.escape(n))
+    onglets_html += (" <a class='onglet_onglet' href='#' onclick="
+                     "document.getElementById('ajout').style.display='block';return false;"
+                     ">+</a>")
+
+    ajouter_html = """<div id=ajout class=carte style="display:none;margin-top:10px">
+<h2>Nouveau profil</h2><form method=post action=/panel/action>
+<input type=hidden name=action value=nouveau_profil>
+<input type=text name=nouveau_nom placeholder="Nom du profil" maxlength=50>
+<button class=vert>Creer</button></form></div>"""
+
+    bloque, raison, restant = calculer_bloquage_profil(profil)
     if bloque:
         badge = "<span class='badge rouge'>BLOQUE (%s)</span>" % (
             "manuel" if raison == "manuel" else "temps ecoule")
     else:
-        texte_restant = "illimite" if int(etat.get("limite", 0)) == 0 \
+        texte_restant = "illimite" if int(profil.get("limite", 0)) == 0 \
             else fmt_duree(restant) + " restantes"
         badge = "<span class='badge vert'>AUTORISE</span> <span class='temps'>%s</span>" % texte_restant
 
     bouton_blocage = ("<form style=display:inline method=post action=/panel/action>"
                       "<input type=hidden name=action value=blocage>"
+                      "<input type=hidden name=profil value='%s'>"
                       "<input type=hidden name=etat value=%s>"
                       "<button class='%s'>%s</button></form>") % (
-        "off" if etat.get("bloque") else "on",
-        "vert" if etat.get("bloque") else "rouge",
-        "Debloquer" if etat.get("bloque") else "Bloquer tout")
+        html.escape(profil_nom),
+        "off" if profil.get("bloque") else "on",
+        "vert" if profil.get("bloque") else "rouge",
+        "Debloquer" if profil.get("bloque") else "Bloquer tout")
 
     demandes_html = ""
-    liste = sorted(etat.get("demandes", []), key=lambda d: d.get("id", 0), reverse=True)
+    liste = sorted(profil.get("demandes", []), key=lambda d: d.get("id", 0), reverse=True)
     for d in liste:
         statut = d.get("statut")
         if statut == "en_attente":
             suite = ("<form style=display:inline method=post action=/panel/action>"
                      "<input type=hidden name=action value=demande_ok>"
+                     "<input type=hidden name=profil value='%s'>"
                      "<input type=hidden name=id value=%d>"
                      "<input type=number name=minutes value=15 min=1 max=600 style=width:70px> min "
                      "<button class=vert>Accepter</button></form> "
                      "<form style=display:inline method=post action=/panel/action>"
                      "<input type=hidden name=action value=demande_non>"
+                     "<input type=hidden name=profil value='%s'>"
                      "<input type=hidden name=id value=%d>"
-                     "<button class=rouge>Refuser</button></form>") % (d["id"], d["id"])
+                     "<button class=rouge>Refuser</button></form>") % (
+                html.escape(profil_nom), d["id"], html.escape(profil_nom), d["id"])
             classe = "attente"
             libelle = "EN ATTENTE"
         elif statut == "acceptee":
@@ -694,7 +835,7 @@ def construire_tableau(etat):
         demandes_html = "<p class=petit>Aucune demande.</p>"
 
     lignes_histo = ""
-    vus = sorted(etat.get("vus", {}).items(), key=lambda kv: kv[1].get("dernier", 0), reverse=True)
+    vus = sorted(profil.get("vus", {}).items(), key=lambda kv: kv[1].get("dernier", 0), reverse=True)
     for titre, infos in vus:
         lignes_histo += ("<tr><td>%s</td><td>%s</td><td>%s</td></tr>") % (
             html.escape(titre), fmt_duree(infos.get("secondes", 0)),
@@ -702,20 +843,24 @@ def construire_tableau(etat):
     if not lignes_histo:
         lignes_histo = "<tr><td colspan=3 class=petit>Aucune video vue pour le moment.</td></tr>"
 
-    return """<!doctype html><html lang=fr><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
-<title>LocalTube - Panel</title><style>%s</style></head><body><div class=cont>
-<h1>LocalTube - Panel parental</h1>
-
-<div class=carte><h2>Etat</h2>%s
+    if not noms:
+        conteneur_profil = ("<p>Aucun profil cree.</p>"
+                            "<form method=post action=/panel/action>"
+                            "<input type=hidden name=action value=nouveau_profil>"
+                            "<input type=text name=nouveau_nom placeholder='Nom du profil'>"
+                            "<button class=vert>Creer</button></form>")
+    else:
+        conteneur_profil = """<div class=carte><h2>Etat — %s</h2>%s
 <div class=ligne>
 %s
 <form style=display:inline method=post action=/panel/action>
 <input type=hidden name=action value=limite>
+<input type=hidden name=profil value='%s'>
 Limite journaliere : <input type=number name=minutes value=%d min=0 max=1440 style=width:90px> min
 <button>Enregistrer</button></form>
 <form style=display:inline method=post action=/panel/action>
-<input type=hidden name=action value=reset_jour><button>Reinitialiser le jour</button></form>
+<input type=hidden name=action value=reset_jour>
+<input type=hidden name=profil value='%s'><button>Reinitialiser le jour</button></form>
 </div>
 <p class=petit>Mettre 0 = illimite. Consomme aujourd'hui : %s</p></div>
 
@@ -726,14 +871,29 @@ Limite journaliere : <input type=number name=minutes value=%d min=0 max=1440 sty
 %s</table>
 <form method=post action=/panel/action style=margin-top:10px>
 <input type=hidden name=action value=vider_histo>
-<button class=rouge>Vider l'historique</button></form></div>
+<input type=hidden name=profil value='%s'>
+<button class=rouge>Vider l'historique</button></form></div>""" % (
+            html.escape(profil_nom), badge, bouton_blocage,
+            html.escape(profil_nom),
+            int(profil.get("limite", 0)) // 60,
+            html.escape(profil_nom),
+            fmt_duree(profil.get("consomme", 0)),
+            demandes_html, lignes_histo,
+            html.escape(profil_nom))
 
+    return """<!doctype html><html lang=fr><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>LocalTube - Panel</title><style>%s</style></head><body><div class=cont>
+<h1>LocalTube - Panel parental</h1>
+
+<div style="margin-bottom:12px">%s <a class='onglet_ajout' href='#' onclick=
+"document.getElementById('ajout').style.display='block';return false">+</a></div>
+%s
+%s
+%s
 <p class=petit>LocalTube - panel reserve aux parents.</p>
 </div></body></html>""" % (
-        CSS_PANEL, badge, bouton_blocage,
-        int(etat.get("limite", 0)) // 60,
-        fmt_duree(etat.get("consomme", 0)),
-        demandes_html, lignes_histo)
+        CSS_PANEL, onglets_html, ajouter_html, conteneur_profil, "")
 
 
 def adresses_locales():

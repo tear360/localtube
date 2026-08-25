@@ -11,6 +11,7 @@
     <string name="server_dialog_message">L\'adresse affichée par le script Python sur votre PC.\nExemple : http://192.168.1.50:8000</string>
     <string name="menu_server">Serveur…</string>
     <string name="menu_refresh">Rafraîchir</string>
+    <string name="menu_profiles">Profils…</string>
     <string name="btn_refresh">Actualiser</string>
     <string name="player_error">Lecture impossible (format non supporté ou problème réseau)</string>
     <string name="update_title">Mise à jour disponible</string>
@@ -27,4 +28,13 @@
     <string name="demande_envoi">Envoi de la demande…</string>
     <string name="demande_envoyee">Demande envoyée — en attente de réponse sur le panel parental.</string>
     <string name="demande_texte">Peux-tu m\'accorder plus de temps ? (vidéo : %1$s)</string>
+    <string name="profile_title">Choisir un profil</string>
+    <string name="profile_subtitle">Sélectionne ton profil pour continuer</string>
+    <string name="profile_title_first">Bienvenue !</string>
+    <string name="profile_subtitle_first">Crée ton premier profil pour commencer</string>
+    <string name="profile_manage">Gérer les profils</string>
+    <string name="profile_hint">Nom du profil</string>
+    <string name="profile_create">Créer</string>
+    <string name="profile_empty">Entre un nom de profil</string>
+    <string name="profile_welcome">Bienvenue %1$s !</string>
 </resources>

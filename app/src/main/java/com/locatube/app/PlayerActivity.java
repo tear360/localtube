@@ -20,19 +20,20 @@ import org.json.JSONObject;
 
 public class PlayerActivity extends Activity {
 
-    private static final String PREF_POS = "pos_";
-    private static final String LAST_REL = "last_rel";
-    private static final String LAST_TITLE = "last_title";
-    private static final String LAST_POS = "last_pos";
-    private static final String LAST_DUR = "last_dur";
+    private static final String LAST_SUFFIX = "last_rel";
+    private static final String LAST_TITLE_SUFFIX = "last_title";
+    private static final String LAST_POS_SUFFIX = "last_pos";
+    private static final String LAST_DUR_SUFFIX = "last_dur";
     private static final int INTERVALLE_TICK_MS = 10_000;
 
     private VideoView videoView;
     private SharedPreferences prefs;
+    private String prefPrefix;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private String urlAbsolue;
     private String relatif;
     private String title;
+    private String profilNom;
     private String baseApi;
     private boolean fini;
     private boolean pret;
@@ -67,7 +68,13 @@ public class PlayerActivity extends Activity {
         urlAbsolue = getIntent().getStringExtra(MainActivity.EXTRA_URL);
         relatif = getIntent().getStringExtra(MainActivity.EXTRA_REL);
         title = getIntent().getStringExtra(MainActivity.EXTRA_TITLE);
+        profilNom = getIntent().getStringExtra(MainActivity.EXTRA_PROFIL);
+        if (profilNom == null) {
+            profilNom = "";
+        }
+
         prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
+        prefPrefix = profilNom.isEmpty() ? "" : "p_" + profilNom + "_";
 
         if (urlAbsolue != null && relatif != null && urlAbsolue.endsWith(relatif)) {
             baseApi = urlAbsolue.substring(0, urlAbsolue.length() - relatif.length());
@@ -106,8 +113,8 @@ public class PlayerActivity extends Activity {
         videoView.setOnCompletionListener(mp -> {
             fini = true;
             prefs.edit()
-                    .remove(PREF_POS + relatif)
-                    .remove(LAST_REL)
+                    .remove(prefPrefix + relatif)
+                    .remove(prefPrefix + LAST_SUFFIX)
                     .apply();
             finish();
         });
@@ -122,10 +129,11 @@ public class PlayerActivity extends Activity {
             demarrerLecture();
             return;
         }
+        final String params = "?profil=" + Uri.encode(profilNom);
         new Thread(() -> {
             JSONObject etat = null;
             try {
-                etat = new JSONObject(Net.get(baseApi + "/api/parental"));
+                etat = new JSONObject(Net.get(baseApi + "/api/parental" + params));
             } catch (Exception ignored) {
             }
             final JSONObject resultat = etat;
@@ -143,7 +151,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void demarrerLecture() {
-        int sauve = prefs.getInt(PREF_POS + relatif, 0);
+        int sauve = prefs.getInt(prefPrefix + relatif, 0);
         int duree = videoView.getDuration();
         if (sauve > 3000 && duree > 0 && sauve < duree - 8000) {
             videoView.seekTo(sauve);
@@ -158,7 +166,8 @@ public class PlayerActivity extends Activity {
 
     private void envoyerTick(int secondes) {
         final String params = "sec=" + secondes
-                + "&video=" + Uri.encode(title == null ? "" : title);
+                + "&video=" + Uri.encode(title == null ? "" : title)
+                + "&profil=" + Uri.encode(profilNom);
         new Thread(() -> {
             JSONObject etat = null;
             try {
@@ -175,10 +184,11 @@ public class PlayerActivity extends Activity {
     }
 
     private void verifierEtat() {
+        final String params = "?profil=" + Uri.encode(profilNom);
         new Thread(() -> {
             JSONObject etat = null;
             try {
-                etat = new JSONObject(Net.get(baseApi + "/api/parental"));
+                etat = new JSONObject(Net.get(baseApi + "/api/parental" + params));
             } catch (Exception ignored) {
             }
             final JSONObject resultat = etat;
@@ -224,7 +234,8 @@ public class PlayerActivity extends Activity {
         btnDemander.setText(R.string.demande_envoi);
         blocStatut.setText("");
         final String params = "texte=" + Uri.encode(
-                getString(R.string.demande_texte, title == null ? "" : title));
+                getString(R.string.demande_texte, title == null ? "" : title))
+                + "&profil=" + Uri.encode(profilNom);
         new Thread(() -> {
             String erreur = null;
             try {
@@ -255,11 +266,11 @@ public class PlayerActivity extends Activity {
             int pos = videoView.getCurrentPosition();
             if (pos > 0) {
                 prefs.edit()
-                        .putInt(PREF_POS + relatif, pos)
-                        .putString(LAST_REL, relatif)
-                        .putString(LAST_TITLE, title)
-                        .putInt(LAST_POS, pos)
-                        .putInt(LAST_DUR, Math.max(videoView.getDuration(), 0))
+                        .putInt(prefPrefix + relatif, pos)
+                        .putString(prefPrefix + LAST_SUFFIX, relatif)
+                        .putString(prefPrefix + LAST_TITLE_SUFFIX, title)
+                        .putInt(prefPrefix + LAST_POS_SUFFIX, pos)
+                        .putInt(prefPrefix + LAST_DUR_SUFFIX, Math.max(videoView.getDuration(), 0))
                         .apply();
             }
         }
