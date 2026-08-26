@@ -177,6 +177,7 @@ public class ProfileActivity extends Activity {
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.OVAL);
             bg.setColor(Color.parseColor(couleurHex));
+            bg.setStroke(3 * dp, Color.WHITE);
             rond.setBackground(bg);
 
             LinearLayout.LayoutParams rondParams = new LinearLayout.LayoutParams(tailleRond, tailleRond);

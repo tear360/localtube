@@ -2712,3 +2712,45 @@
 [2026-08-26 18:54:44] 127.0.0.1 - "GET /panel HTTP/1.1" 200 -
 [2026-08-26 18:54:44] 127.0.0.1 - code 404, message Not Found
 [2026-08-26 18:54:44] 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-08-26 18:56:05] ============================================================
+[2026-08-26 18:56:05]  LocalTube - serveur de videos
+[2026-08-26 18:56:05]  Dossier servi   : C:\Users\degre_3\Videos\LocalTube
+[2026-08-26 18:56:05]  Port            : 8000
+[2026-08-26 18:56:05]  Videos trouvees : 21
+[2026-08-26 18:56:05]  Miniatures      : activees (ffmpeg)
+[2026-08-26 18:56:05] ------------------------------------------------------------
+[2026-08-26 18:56:05]  Sur le telephone, entrez une de ces adresses :
+[2026-08-26 18:56:05]    http://192.168.1.49:8000
+[2026-08-26 18:56:05]    Panel parental : http://192.168.1.49:8000/panel
+[2026-08-26 18:56:05]    http://192.168.56.1:8000
+[2026-08-26 18:56:05]    Panel parental : http://192.168.56.1:8000/panel
+[2026-08-26 18:56:05] ============================================================
+[2026-08-26 18:56:05] Mode arriere-plan : fermez via le gestionnaire des taches
+[2026-08-26 18:56:05] (pythonw.exe) ou avec arrester_serveur.bat.
+[2026-08-26 18:56:06] Miniatures pre-generatees : 20
+[2026-08-26 18:58:38] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 18:59:04] 192.168.1.4 - "POST /api/profils HTTP/1.1" 200 -
+[2026-08-26 18:59:04] 192.168.1.4 - "GET /api/videos?profil=oscar HTTP/1.1" 200 -
+[2026-08-26 18:59:22] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 18:59:34] 192.168.1.4 - "GET /api/videos?profil=oscar HTTP/1.1" 200 -
+[2026-08-26 19:00:56] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:03:04] 192.168.1.4 - "POST /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:03:04] 192.168.1.4 - "GET /api/videos?profil=louis HTTP/1.1" 200 -
+[2026-08-26 19:03:26] 192.168.1.4 - "GET /api/videos?profil=louis HTTP/1.1" 200 -
+[2026-08-26 19:03:27] 192.168.1.4 - miniature "louis/Cache Cache MAIS Je ne vais JAMAIS Les Chercher.mp4" -> 6527 octets
+[2026-08-26 19:03:27] 192.168.1.4 - "GET /thumb/louis/Cache%20Cache%20MAIS%20Je%20ne%20vais%20JAMAIS%20Les%20Chercher.mp4?v=1787744905 HTTP/1.1" 200 -
+[2026-08-26 19:03:27] 192.168.1.4 - miniature "louis/J’ai Donné Mon Mot De Passe Netflix à 10,000 Personnes.mp4" -> 13206 octets
+[2026-08-26 19:03:27] 192.168.1.4 - "GET /thumb/louis/J%E2%80%99ai%20Donn%C3%A9%20Mon%20Mot%20De%20Passe%20Netflix%20%C3%A0%2010%2C000%20Personnes.mp4?v=1787586480 HTTP/1.1" 200 -
+[2026-08-26 19:03:27] 192.168.1.4 - miniature "louis/J’ai piégé Internet avec de fausses vidéos IA.mp4" -> 15121 octets
+[2026-08-26 19:03:27] 192.168.1.4 - "GET /thumb/louis/J%E2%80%99ai%20pi%C3%A9g%C3%A9%20Internet%20avec%20de%20fausses%20vid%C3%A9os%20IA.mp4?v=1787663678 HTTP/1.1" 200 -
+[2026-08-26 19:03:27] 192.168.1.4 - miniature "louis/La seule vidéo sur les croix de pharmacie (oui jen ai une).mp4" -> 9241 octets
+[2026-08-26 19:03:27] 192.168.1.4 - "GET /thumb/louis/La%20seule%20vid%C3%A9o%20sur%20les%20croix%20de%20pharmacie%20%28oui%20jen%20ai%20une%29.mp4?v=1787663421 HTTP/1.1" 200 -
+[2026-08-26 19:03:27] 192.168.1.4 - miniature "louis/Space Jam (1996).mp4" -> 7733 octets
+[2026-08-26 19:03:27] 192.168.1.4 - "GET /thumb/louis/Space%20Jam%20%281996%29.mp4?v=1787757436 HTTP/1.1" 200 -
+[2026-08-26 19:03:31] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:07:09] 127.0.0.1 - "GET /panel HTTP/1.1" 200 -
+[2026-08-26 19:07:09] 127.0.0.1 - code 404, message Not Found
+[2026-08-26 19:07:09] 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-08-26 19:07:11] 127.0.0.1 - "GET /panel?profil=louis HTTP/1.1" 200 -
+[2026-08-26 19:07:11] 127.0.0.1 - code 404, message Not Found
+[2026-08-26 19:07:11] 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -

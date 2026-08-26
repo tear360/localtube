@@ -25,17 +25,26 @@
 
         <Button
             android:id="@+id/btn_refresh"
-            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_refresh" />
+            android:layout_height="36dp"
+            android:background="@drawable/btn_toolbar"
+            android:text="@string/btn_refresh"
+            android:textColor="#FFFFFFFF"
+            android:textSize="13sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:layout_marginEnd="6dp" />
 
         <Button
             android:id="@+id/btn_profil"
-            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_profile" />
+            android:layout_height="36dp"
+            android:background="@drawable/btn_toolbar"
+            android:text="@string/btn_profile"
+            android:textColor="#FFFFFFFF"
+            android:textSize="13sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
     </LinearLayout>
 
     <FrameLayout
