@@ -7,6 +7,9 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -47,6 +50,7 @@ public class MainActivity extends Activity {
     public static final String PREFS = "locatube";
     private static final String PREF_SERVER = "server";
     public static final String CURRENT_PROFILE = "current_profile";
+    public static final String CURRENT_PROFILE_COLOR = "current_profile_color";
 
     private static final int REQ_PROfil = 1;
 
@@ -125,6 +129,7 @@ public class MainActivity extends Activity {
 
         profilActif = prefs().getString(CURRENT_PROFILE, "");
         majBoutonProfil();
+        appliquerCouleurProfil();
         if (serverBase().isEmpty()) {
             promptForServer();
         } else if (profilActif.isEmpty()) {
@@ -140,6 +145,7 @@ public class MainActivity extends Activity {
         super.onResume();
         profilActif = prefs().getString(CURRENT_PROFILE, "");
         majBoutonProfil();
+        appliquerCouleurProfil();
         majBarreLecture();
     }
 
@@ -149,6 +155,7 @@ public class MainActivity extends Activity {
         if (requestCode == REQ_PROfil) {
             profilActif = prefs().getString(CURRENT_PROFILE, "");
             majBoutonProfil();
+            appliquerCouleurProfil();
             if (profilActif.isEmpty()) {
                 finish();
                 return;
@@ -169,6 +176,30 @@ public class MainActivity extends Activity {
         if (btn != null) {
             String label = profilActif.isEmpty() ? getString(R.string.btn_profile) : profilActif;
             btn.setText(label);
+            String hex = prefs().getString(CURRENT_PROFILE_COLOR, "");
+            if (!hex.isEmpty()) {
+                try {
+                    int couleur = Color.parseColor(hex);
+                    GradientDrawable bg = new GradientDrawable();
+                    bg.setCornerRadius(12 * getResources().getDisplayMetrics().density);
+                    bg.setColor(couleur);
+                    btn.setBackground(bg);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    private void appliquerCouleurProfil() {
+        String hex = prefs().getString(CURRENT_PROFILE_COLOR, "");
+        if (!hex.isEmpty()) {
+            try {
+                int couleur = Color.parseColor(hex);
+                if (getActionBar() != null) {
+                    getActionBar().setBackgroundDrawable(new ColorDrawable(couleur));
+                }
+            } catch (Exception ignored) {
+            }
         }
     }
 

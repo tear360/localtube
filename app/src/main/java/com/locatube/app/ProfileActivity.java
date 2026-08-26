@@ -27,14 +27,14 @@ public class ProfileActivity extends Activity {
     public static final String MODE_CHOOSE = "choose";
     public static final String MODE_MANAGE = "manage";
 
-    private final List<String> profils = new ArrayList<>();
+    private final List<String[]> profils = new ArrayList<>();
     private LinearLayout container;
     private EditText input;
     private Button createBtn;
     private String mode;
     private String baseApi;
 
-    private static final int[] COULEURS = {
+    private static final int[] COULEURS_OFFLINE = {
             0xFFE50914, 0xFF1CE783, 0xFF564DFF,
             0xFFFFD54F, 0xFF4FC3F7, 0xFFAB47BC,
             0xFFFF7043, 0xFFB81D24, 0xFFFF6B6B,
@@ -121,7 +121,10 @@ public class ProfileActivity extends Activity {
                 try {
                     JSONArray arr = new JSONObject(reponse).getJSONArray("profils");
                     for (int i = 0; i < arr.length(); i++) {
-                        profils.add(arr.getString(i));
+                        JSONObject o = arr.getJSONObject(i);
+                        String nom = o.getString("nom");
+                        String couleur = o.optString("couleur", "#E50914");
+                        profils.add(new String[]{nom, couleur});
                     }
                 } catch (Exception ignored) {
                 }
@@ -156,7 +159,8 @@ public class ProfileActivity extends Activity {
                 container.addView(ligne);
             }
 
-            final String nom = profils.get(i);
+            final String nom = profils.get(i)[0];
+            final String couleurHex = profils.get(i)[1];
 
             LinearLayout bloc = new LinearLayout(this);
             bloc.setOrientation(LinearLayout.VERTICAL);
@@ -172,7 +176,7 @@ public class ProfileActivity extends Activity {
 
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.OVAL);
-            bg.setColor(COULEURS[i % COULEURS.length]);
+            bg.setColor(Color.parseColor(couleurHex));
             rond.setBackground(bg);
 
             LinearLayout.LayoutParams rondParams = new LinearLayout.LayoutParams(tailleRond, tailleRond);
@@ -198,7 +202,7 @@ public class ProfileActivity extends Activity {
 
             bloc.addView(label);
 
-            bloc.setOnClickListener(v -> selectionner(nom));
+            bloc.setOnClickListener(v -> selectionner(nom, couleurHex));
 
             ligne.addView(bloc);
         }
@@ -222,21 +226,31 @@ public class ProfileActivity extends Activity {
             return;
         }
         if (baseApi == null || baseApi.isEmpty()) {
-            enregistrerLocalement(nom);
+            int idx = profils.size();
+            String hex = String.format("#%06X", 0xFFFFFF & COULEURS_OFFLINE[idx % COULEURS_OFFLINE.length]);
+            enregistrerLocalement(nom, hex);
             return;
         }
         final String params = "nom=" + android.net.Uri.encode(nom);
         new Thread(() -> {
+            String reponse = null;
             String erreur = null;
             try {
-                Net.post(baseApi + "/api/profils", params);
+                reponse = Net.post(baseApi + "/api/profils", params);
             } catch (Exception e) {
                 erreur = e.getMessage();
             }
+            final String rep = reponse;
             final String err = erreur;
             runOnUiThread(() -> {
                 if (err == null) {
-                    enregistrerLocalement(nom);
+                    String hex = "#E50914";
+                    try {
+                        JSONObject obj = new JSONObject(rep);
+                        hex = obj.optString("couleur", hex);
+                    } catch (Exception ignored) {
+                    }
+                    enregistrerLocalement(nom, hex);
                 } else {
                     Toast.makeText(this,
                             getString(R.string.error_prefix) + " " + err,
@@ -246,16 +260,22 @@ public class ProfileActivity extends Activity {
         }).start();
     }
 
-    private void selectionner(String nom) {
+    private void selectionner(String nom, String couleur) {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
-        prefs.edit().putString(MainActivity.CURRENT_PROFILE, nom).apply();
+        prefs.edit()
+                .putString(MainActivity.CURRENT_PROFILE, nom)
+                .putString(MainActivity.CURRENT_PROFILE_COLOR, couleur)
+                .apply();
         setResult(RESULT_OK);
         finish();
     }
 
-    private void enregistrerLocalement(String nom) {
+    private void enregistrerLocalement(String nom, String couleur) {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
-        prefs.edit().putString(MainActivity.CURRENT_PROFILE, nom).apply();
+        prefs.edit()
+                .putString(MainActivity.CURRENT_PROFILE, nom)
+                .putString(MainActivity.CURRENT_PROFILE_COLOR, couleur)
+                .apply();
         Toast.makeText(this,
                 getString(R.string.profile_welcome, nom),
                 Toast.LENGTH_SHORT).show();

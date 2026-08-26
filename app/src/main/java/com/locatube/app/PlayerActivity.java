@@ -3,6 +3,8 @@ package com.locatube.app;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -101,6 +103,13 @@ public class PlayerActivity extends Activity {
         if (getActionBar() != null) {
             getActionBar().setTitle(title);
             getActionBar().setDisplayHomeAsUpEnabled(true);
+            String hex = prefs.getString(MainActivity.CURRENT_PROFILE_COLOR, "");
+            if (!hex.isEmpty()) {
+                try {
+                    getActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor(hex)));
+                } catch (Exception ignored) {
+                }
+            }
         }
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 

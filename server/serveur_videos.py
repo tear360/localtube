@@ -3,6 +3,7 @@ import html
 import json
 import mimetypes
 import os
+import random
 import re
 import shutil
 import socket
@@ -38,6 +39,17 @@ LOG_FILE = os.path.join(SCRIPT_DIR, "serveur_log.txt")
 ETAT_FILE = os.path.join(SCRIPT_DIR, "etat_parental.json")
 VERROU_ETAT = threading.Lock()
 
+COULEURS_PROFIL = [
+    "#E50914", "#1CE783", "#564DFF",
+    "#FFD54F", "#4FC3F7", "#AB47BC",
+    "#FF7043", "#E91E63", "#00BCD4",
+    "#8BC34A", "#FF9800", "#7C4DFF",
+]
+
+
+def couleur_au_pif():
+    return random.choice(COULEURS_PROFIL)
+
 
 def profil_defaut():
     return {
@@ -48,6 +60,7 @@ def profil_defaut():
         "jour": time.strftime("%Y-%m-%d"),
         "vus": {},
         "demandes": [],
+        "couleur": couleur_au_pif(),
     }
 
 
@@ -72,6 +85,9 @@ def migrer_si_ancien(etat):
     for cle in list(etat.keys()):
         if cle not in ("code", "prochain_id", "profils"):
             etat.pop(cle, None)
+    for p in etat.get("profils", {}).values():
+        if "couleur" not in p:
+            p["couleur"] = couleur_au_pif()
 
 
 def charger_etat():
@@ -432,8 +448,10 @@ class Handler(BaseHTTPRequestHandler):
     def api_profils_liste(self):
         with VERROU_ETAT:
             etat = charger_etat()
-            noms = list(etat.get("profils", {}).keys())
-        self.envoyer_json({"profils": noms})
+            liste = []
+            for nom, p in etat.get("profils", {}).items():
+                liste.append({"nom": nom, "couleur": p.get("couleur", "#E50914")})
+        self.envoyer_json({"profils": liste})
 
     def api_profils_creer(self):
         p = self.lire_params()
@@ -441,14 +459,19 @@ class Handler(BaseHTTPRequestHandler):
         if not nom:
             self.envoyer_json({"erreur": "nom requis"})
             return
+        couleur = None
         with VERROU_ETAT:
             etat = charger_etat()
             if nom not in etat["profils"]:
-                etat["profils"][nom] = profil_defaut()
+                profil = profil_defaut()
+                etat["profils"][nom] = profil
+                couleur = profil["couleur"]
                 sauver_etat(etat)
                 dossier = os.path.join(os.path.abspath(VIDEO_DIR), nom)
                 os.makedirs(dossier, exist_ok=True)
-        self.envoyer_json({"ok": True, "nom": nom})
+            else:
+                couleur = etat["profils"][nom].get("couleur", "#E50914")
+        self.envoyer_json({"ok": True, "nom": nom, "couleur": couleur})
 
     def api_parental_etat(self, params):
         profil_nom = params.get("profil", [""])[0]
