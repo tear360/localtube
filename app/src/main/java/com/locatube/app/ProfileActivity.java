@@ -2,7 +2,6 @@ package com.locatube.app;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -11,7 +10,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -30,7 +28,7 @@ public class ProfileActivity extends Activity {
     public static final String MODE_MANAGE = "manage";
 
     private final List<String> profils = new ArrayList<>();
-    private GridLayout grid;
+    private LinearLayout container;
     private EditText input;
     private Button createBtn;
     private String mode;
@@ -54,7 +52,7 @@ public class ProfileActivity extends Activity {
 
         TextView titre = findViewById(R.id.profil_titre);
         TextView sousTitre = findViewById(R.id.profile_sous_titre);
-        grid = findViewById(R.id.profile_grid);
+        container = findViewById(R.id.profile_container);
         input = findViewById(R.id.profile_input_always);
         createBtn = findViewById(R.id.profile_create_btn_always);
 
@@ -81,7 +79,7 @@ public class ProfileActivity extends Activity {
             titre.setText(R.string.profile_title_first);
             sousTitre.setText(R.string.profile_subtitle_first);
             sousTitre.setVisibility(View.VISIBLE);
-            grid.setVisibility(View.GONE);
+            container.setVisibility(View.GONE);
             input.setVisibility(View.VISIBLE);
             createBtn.setVisibility(View.VISIBLE);
             findViewById(R.id.profile_ajouter_label).setVisibility(View.GONE);
@@ -133,7 +131,7 @@ public class ProfileActivity extends Activity {
                     TextView titre = findViewById(R.id.profil_titre);
                     titre.setText(R.string.profile_title_first);
                     findViewById(R.id.profile_sous_titre).setVisibility(View.VISIBLE);
-                    grid.setVisibility(View.GONE);
+                    container.setVisibility(View.GONE);
                     input.setVisibility(View.VISIBLE);
                     createBtn.setVisibility(View.VISIBLE);
                     findViewById(R.id.profile_ajouter_label).setVisibility(View.GONE);
@@ -143,30 +141,34 @@ public class ProfileActivity extends Activity {
     }
 
     private void afficherRonds() {
-        grid.removeAllViews();
+        container.removeAllViews();
         int dp = (int) getResources().getDisplayMetrics().density;
         int tailleRond = 80 * dp;
         int marge = 16 * dp;
+        int parLigne = 3;
 
+        LinearLayout ligne = null;
         for (int i = 0; i < profils.size(); i++) {
+            if (i % parLigne == 0) {
+                ligne = new LinearLayout(this);
+                ligne.setOrientation(LinearLayout.HORIZONTAL);
+                ligne.setGravity(Gravity.CENTER_HORIZONTAL);
+                container.addView(ligne);
+            }
+
             final String nom = profils.get(i);
 
             LinearLayout bloc = new LinearLayout(this);
             bloc.setOrientation(LinearLayout.VERTICAL);
             bloc.setGravity(Gravity.CENTER_HORIZONTAL);
-
-            GridLayout.LayoutParams blocParams = new GridLayout.LayoutParams();
-            blocParams.width = tailleRond + marge * 2;
-            blocParams.setMargins(0, marge / 2, 0, marge / 2);
-            bloc.setLayoutParams(blocParams);
+            bloc.setPadding(marge, marge / 2, marge, marge / 2);
+            bloc.setClickable(true);
 
             TextView rond = new TextView(this);
             rond.setText(lettreInitiale(nom));
             rond.setTextSize(28);
             rond.setTextColor(Color.WHITE);
             rond.setGravity(Gravity.CENTER);
-            rond.setClickable(true);
-            rond.setFocusable(true);
 
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.OVAL);
@@ -176,8 +178,6 @@ public class ProfileActivity extends Activity {
             LinearLayout.LayoutParams rondParams = new LinearLayout.LayoutParams(tailleRond, tailleRond);
             rondParams.gravity = Gravity.CENTER_HORIZONTAL;
             rond.setLayoutParams(rondParams);
-
-            rond.setOnClickListener(v -> selectionner(nom));
 
             bloc.addView(rond);
 
@@ -197,7 +197,16 @@ public class ProfileActivity extends Activity {
             label.setLayoutParams(labelParams);
 
             bloc.addView(label);
-            grid.addView(bloc);
+
+            bloc.setOnClickListener(v -> selectionner(nom));
+
+            ligne.addView(bloc);
+        }
+
+        if (profils.isEmpty()) {
+            container.setVisibility(View.GONE);
+        } else {
+            container.setVisibility(View.VISIBLE);
         }
     }
 

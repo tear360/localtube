@@ -1,99 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center_horizontal"
-    android:orientation="vertical"
-    android:paddingTop="48dp"
-    android:paddingBottom="24dp"
-    android:paddingStart="24dp"
-    android:paddingEnd="24dp">
-
-    <TextView
-        android:id="@+id/profil_titre"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:text="@string/profile_title"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="24sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/profile_sous_titre"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:gravity="center"
-        android:text="@string/profile_subtitle"
-        android:textColor="?android:attr/textColorSecondary"
-        android:textSize="14sp" />
-
-    <GridLayout
-        android:id="@+id/profile_grid"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:columnCount="3"
-        android:rowCount="2" />
-
-    <TextView
-        android:id="@+id/profile_ajouter_label"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="36dp"
-        android:text="@string/profile_create"
-        android:textColor="#FF6B6B"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:clickable="true"
-        android:focusable="true"
-        android:drawableStart="@android:drawable/ic_input_add"
-        android:drawablePadding="8dp" />
+    android:background="#FF121212">
 
     <LinearLayout
-        android:id="@+id/profile_creation_panel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:visibility="gone">
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="40dp"
+        android:paddingBottom="24dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp">
+
+        <TextView
+            android:id="@+id/profil_titre"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/profile_title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/profile_sous_titre"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="@string/profile_subtitle"
+            android:textColor="#99FFFFFF"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:id="@+id/profile_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/profile_ajouter_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:clickable="true"
+            android:drawableStart="@android:drawable/ic_input_add"
+            android:drawablePadding="8dp"
+            android:focusable="true"
+            android:text="@string/profile_create"
+            android:textColor="#FFFF6B6B"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <EditText
-            android:id="@+id/profile_input"
-            android:layout_width="0dp"
+            android:id="@+id/profile_input_always"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_marginTop="16dp"
             android:hint="@string/profile_hint"
             android:imeOptions="actionDone"
             android:inputType="text"
-            android:maxLines="1" />
+            android:maxLines="1"
+            android:visibility="gone" />
 
         <Button
-            android:id="@+id/profile_create_btn"
+            android:id="@+id/profile_create_btn_always"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/profile_ok" />
+            android:layout_marginTop="8dp"
+            android:text="@string/profile_ok"
+            android:visibility="gone" />
+
     </LinearLayout>
-
-    <EditText
-        android:id="@+id/profile_input_always"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="@string/profile_hint"
-        android:imeOptions="actionDone"
-        android:inputType="text"
-        android:maxLines="1"
-        android:visibility="gone" />
-
-    <Button
-        android:id="@+id/profile_create_btn_always"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/profile_ok"
-        android:visibility="gone" />
-
-</LinearLayout>
+</ScrollView>
