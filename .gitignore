@@ -8,3 +8,7 @@ captures/
 .cxx/
 
 server/bin/
+
+server/cache_miniatures/
+server/err.log
+server/out.log
