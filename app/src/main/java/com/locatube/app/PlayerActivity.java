@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.MediaController;
@@ -25,6 +26,7 @@ public class PlayerActivity extends Activity {
     private static final String LAST_POS_SUFFIX = "last_pos";
     private static final String LAST_DUR_SUFFIX = "last_dur";
     private static final int INTERVALLE_TICK_MS = 10_000;
+    private static final int DELAI_ACTION_BAR_MS = 3_000;
 
     private VideoView videoView;
     private SharedPreferences prefs;
@@ -60,6 +62,22 @@ public class PlayerActivity extends Activity {
         }
     };
 
+    private final Runnable masquerActionBar = new Runnable() {
+        @Override
+        public void run() {
+            if (fini) {
+                return;
+            }
+            if (getActionBar() != null) {
+                getActionBar().hide();
+            }
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,6 +102,7 @@ public class PlayerActivity extends Activity {
             getActionBar().setTitle(title);
             getActionBar().setDisplayHomeAsUpEnabled(true);
         }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         videoView = findViewById(R.id.video_view);
         videoView.setKeepScreenOn(true);
@@ -112,11 +131,20 @@ public class PlayerActivity extends Activity {
 
         videoView.setOnCompletionListener(mp -> {
             fini = true;
+            handler.removeCallbacks(masquerActionBar);
+            if (getActionBar() != null) {
+                getActionBar().show();
+            }
             prefs.edit()
                     .remove(prefPrefix + relatif)
                     .remove(prefPrefix + LAST_SUFFIX)
                     .apply();
             finish();
+        });
+
+        videoView.setOnTouchListener((v, event) -> {
+            montrerActionBarTemporairement();
+            return false;
         });
 
         if (urlAbsolue != null) {
@@ -162,6 +190,19 @@ public class PlayerActivity extends Activity {
         videoView.start();
         handler.removeCallbacks(cycle);
         handler.postDelayed(cycle, INTERVALLE_TICK_MS);
+        montrerActionBarTemporairement();
+    }
+
+    private void montrerActionBarTemporairement() {
+        handler.removeCallbacks(masquerActionBar);
+        if (getActionBar() != null) {
+            getActionBar().show();
+        }
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        handler.postDelayed(masquerActionBar, DELAI_ACTION_BAR_MS);
     }
 
     private void envoyerTick(int secondes) {
@@ -212,6 +253,10 @@ public class PlayerActivity extends Activity {
     private void montrerBlocage(String raison) {
         bloquerAffiche = true;
         videoView.pause();
+        handler.removeCallbacks(masquerActionBar);
+        if (getActionBar() != null) {
+            getActionBar().show();
+        }
         boolean manuel = "manuel".equals(raison);
         blocTitre.setText(manuel ? R.string.blocage_manuel_titre : R.string.blocage_temps_titre);
         blocMessage.setText(manuel ? R.string.blocage_manuel_msg : R.string.blocage_temps_msg);
@@ -226,6 +271,7 @@ public class PlayerActivity extends Activity {
         overlay.setVisibility(View.GONE);
         if (pret && !fini) {
             videoView.start();
+            montrerActionBarTemporairement();
         }
     }
 
@@ -292,6 +338,9 @@ public class PlayerActivity extends Activity {
         super.onDestroy();
         fini = true;
         handler.removeCallbacksAndMessages(null);
+        if (getActionBar() != null) {
+            getActionBar().show();
+        }
     }
 
     @Override
