@@ -13,6 +13,7 @@
     <string name="menu_refresh">Rafraîchir</string>
     <string name="menu_profiles">Profils…</string>
     <string name="btn_refresh">Actualiser</string>
+    <string name="btn_profile">Profil</string>
     <string name="player_error">Lecture impossible (format non supporté ou problème réseau)</string>
     <string name="update_title">Mise à jour disponible</string>
     <string name="update_message">La version %1$d est disponible sur GitHub.\nLa télécharger et l\'installer maintenant ?</string>

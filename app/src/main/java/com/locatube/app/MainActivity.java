@@ -86,6 +86,7 @@ public class MainActivity extends Activity {
         emptyView = findViewById(R.id.empty);
 
         findViewById(R.id.btn_refresh).setOnClickListener(v -> fetchVideos());
+        findViewById(R.id.btn_profil).setOnClickListener(v -> ouvrirChoixProfil(MODE_MANAGE));
 
         barreLecture = findViewById(R.id.barre_lecture);
         barreTitre = findViewById(R.id.barre_titre);
@@ -123,6 +124,7 @@ public class MainActivity extends Activity {
         });
 
         profilActif = prefs().getString(CURRENT_PROFILE, "");
+        majBoutonProfil();
         if (serverBase().isEmpty()) {
             promptForServer();
         } else if (profilActif.isEmpty()) {
@@ -137,6 +139,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        profilActif = prefs().getString(CURRENT_PROFILE, "");
+        majBoutonProfil();
         majBarreLecture();
     }
 
@@ -145,6 +149,7 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_PROfil) {
             profilActif = prefs().getString(CURRENT_PROFILE, "");
+            majBoutonProfil();
             if (profilActif.isEmpty()) {
                 finish();
                 return;
@@ -158,6 +163,14 @@ public class MainActivity extends Activity {
         Intent it = new Intent(this, ProfileActivity.class);
         it.putExtra(ProfileActivity.EXTRA_MODE, mode);
         startActivityForResult(it, REQ_PROfil);
+    }
+
+    private void majBoutonProfil() {
+        android.widget.Button btn = findViewById(R.id.btn_profil);
+        if (btn != null) {
+            String label = profilActif.isEmpty() ? getString(R.string.btn_profile) : profilActif;
+            btn.setText(label);
+        }
     }
 
     private void ouvrirVideo(String relatif, String titre) {
