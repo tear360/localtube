@@ -165,8 +165,13 @@ def trouver_ffmpeg():
 FFMPEG = trouver_ffmpeg()
 
 
-def iterer_videos():
-    racine_abs = os.path.abspath(VIDEO_DIR)
+def iterer_videos(profil=None):
+    if profil:
+        racine_abs = os.path.join(os.path.abspath(VIDEO_DIR), profil)
+        if not os.path.isdir(racine_abs):
+            return
+    else:
+        racine_abs = os.path.abspath(VIDEO_DIR)
     for racine, dossiers, fichiers in os.walk(racine_abs):
         dossiers[:] = sorted(d for d in dossiers if not d.startswith("."))
         for nom in sorted(fichiers):
@@ -176,13 +181,13 @@ def iterer_videos():
             if ext not in EXTENSIONS_VIDEO:
                 continue
             chemin = os.path.join(racine, nom)
-            relatif = os.path.relpath(chemin, racine_abs).replace("\\", "/")
+            relatif = os.path.relpath(chemin, os.path.abspath(VIDEO_DIR)).replace("\\", "/")
             yield chemin, relatif
 
 
-def lister_videos():
+def lister_videos(profil=None):
     resultats = []
-    for chemin, relatif in iterer_videos():
+    for chemin, relatif in iterer_videos(profil=profil):
         try:
             taille = os.path.getsize(chemin)
             mtime = int(os.path.getmtime(chemin))
@@ -320,6 +325,13 @@ def pre_generer():
     for video_abs, relatif in iterer_videos():
         if assurer_miniature(video_abs, chemin_miniature(relatif)):
             nb += 1
+    racine = os.path.abspath(VIDEO_DIR)
+    for nom in os.listdir(racine):
+        sous = os.path.join(racine, nom)
+        if os.path.isdir(sous) and not nom.startswith(".") and not nom.startswith("__"):
+            for video_abs, relatif in iterer_videos(profil=nom):
+                if assurer_miniature(video_abs, chemin_miniature(relatif)):
+                    nb += 1
     ecrire("Miniatures pre-generatees : %d" % nb)
 
 
@@ -340,7 +352,9 @@ class Handler(BaseHTTPRequestHandler):
         params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
 
         if chemin in ("/", "/api/videos"):
-            corps = json.dumps({"videos": lister_videos()}, ensure_ascii=False).encode("utf-8")
+            profil = params.get("profil", [""])[0]
+            corps = json.dumps({"videos": lister_videos(profil=profil)},
+                               ensure_ascii=False).encode("utf-8")
             self.envoyer_entetes(200, "application/json; charset=utf-8", len(corps))
             if not head:
                 self.wfile.write(corps)
@@ -432,6 +446,8 @@ class Handler(BaseHTTPRequestHandler):
             if nom not in etat["profils"]:
                 etat["profils"][nom] = profil_defaut()
                 sauver_etat(etat)
+                dossier = os.path.join(os.path.abspath(VIDEO_DIR), nom)
+                os.makedirs(dossier, exist_ok=True)
         self.envoyer_json({"ok": True, "nom": nom})
 
     def api_parental_etat(self, params):

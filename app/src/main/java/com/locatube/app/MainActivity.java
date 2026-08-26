@@ -273,7 +273,7 @@ public class MainActivity extends Activity {
             String body = null;
             Exception error = null;
             try {
-                body = Net.get(base + "/api/videos");
+                body = Net.get(base + "/api/videos?profil=" + android.net.Uri.encode(profilActif));
             } catch (Exception e) {
                 error = e;
             }
