@@ -932,6 +932,13 @@ def adresses_locales():
     return sorted(adresses)
 
 
+def creer_dossiers_profils():
+    etat = charger_etat()
+    for nom in etat.get("profils", {}).keys():
+        dossier = os.path.join(os.path.abspath(VIDEO_DIR), nom)
+        os.makedirs(dossier, exist_ok=True)
+
+
 def principal():
     global VIDEO_DIR
     VIDEO_DIR = os.path.abspath(VIDEO_DIR)
@@ -948,6 +955,8 @@ def principal():
         else:
             os.makedirs(VIDEO_DIR)
             ecrire("Dossier cree : %s" % VIDEO_DIR)
+
+    creer_dossiers_profils()
 
     try:
         serveur = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
