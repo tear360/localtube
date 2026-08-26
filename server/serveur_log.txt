@@ -2778,3 +2778,20 @@
 [2026-08-26 19:12:30] 192.168.1.4 - "GET /thumb/oscar/Le%20Voyage%20Pour%20Devenir%20SWORDMASTER.mp4?v=1787654499 HTTP/1.1" 200 -
 [2026-08-26 19:12:30] 192.168.1.4 - miniature "oscar/La plus grande opération despionnage de Minecraft..mp4" -> 6561 octets
 [2026-08-26 19:12:30] 192.168.1.4 - "GET /thumb/oscar/La%20plus%20grande%20op%C3%A9ration%20despionnage%20de%20Minecraft..mp4?v=1787654656 HTTP/1.1" 200 -
+[2026-08-26 19:19:07] 127.0.0.1 - "GET /panel?profil=louis HTTP/1.1" 200 -
+[2026-08-26 19:19:07] 127.0.0.1 - code 404, message Not Found
+[2026-08-26 19:19:07] 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-08-26 19:21:27] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:21:29] 192.168.1.4 - "GET /api/videos?profil=oscar HTTP/1.1" 200 -
+[2026-08-26 19:21:30] 192.168.1.4 - miniature "oscar/100 Jours sur Minecraft BEDROCK...mp4" -> 13181 octets
+[2026-08-26 19:21:30] 192.168.1.4 - "GET /thumb/oscar/100%20Jours%20sur%20Minecraft%20BEDROCK...mp4?v=1787764349 HTTP/1.1" 200 -
+[2026-08-26 19:21:30] 192.168.1.4 - miniature "oscar/5 Pro Minecraft VS 500 JOUEURS.mp4" -> 14678 octets
+[2026-08-26 19:21:30] 192.168.1.4 - "GET /thumb/oscar/5%20Pro%20Minecraft%20VS%20500%20JOUEURS.mp4?v=1787764349 HTTP/1.1" 200 -
+[2026-08-26 19:21:30] 192.168.1.4 - miniature "oscar/Jai construit une ÎLE de LUXE sur Minecraft Hardcore.mp4" -> 11658 octets
+[2026-08-26 19:21:30] 192.168.1.4 - "GET /thumb/oscar/Jai%20construit%20une%20%C3%8ELE%20de%20LUXE%20sur%20Minecraft%20Hardcore.mp4?v=1787764349 HTTP/1.1" 200 -
+[2026-08-26 19:21:30] 192.168.1.4 - miniature "oscar/La plus grande opération despionnage de Minecraft..mp4" -> 6561 octets
+[2026-08-26 19:21:30] 192.168.1.4 - "GET /thumb/oscar/La%20plus%20grande%20op%C3%A9ration%20despionnage%20de%20Minecraft..mp4?v=1787764350 HTTP/1.1" 200 -
+[2026-08-26 19:21:30] 192.168.1.4 - miniature "oscar/Le Voyage Pour Devenir SWORDMASTER.mp4" -> 16570 octets
+[2026-08-26 19:21:30] 192.168.1.4 - "GET /thumb/oscar/Le%20Voyage%20Pour%20Devenir%20SWORDMASTER.mp4?v=1787764350 HTTP/1.1" 200 -
+[2026-08-26 19:21:47] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:23:13] 192.168.1.4 - "GET /api/videos?profil=oscar HTTP/1.1" 200 -

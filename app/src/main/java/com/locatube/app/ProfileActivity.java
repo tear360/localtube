@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -33,6 +33,11 @@ public class ProfileActivity extends Activity {
     private Button createBtn;
     private String mode;
     private String baseApi;
+
+    private int focusIdx = -1;
+    private TextView[] ronds;
+    private String[] noms;
+    private String[] couleurs;
 
     private static final int[] COULEURS_OFFLINE = {
             0xFFE50914, 0xFF1CE783, 0xFF564DFF,
@@ -100,6 +105,20 @@ public class ProfileActivity extends Activity {
         chargerProfils();
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (profils.isEmpty()) {
+            return super.onKeyDown(keyCode, event);
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+            if (focusIdx >= 0 && focusIdx < profils.size()) {
+                selectionner(noms[focusIdx], couleurs[focusIdx]);
+                return true;
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
     private void chargerProfils() {
         profils.clear();
         if (baseApi == null || baseApi.isEmpty()) {
@@ -150,57 +169,67 @@ public class ProfileActivity extends Activity {
         int marge = 16 * dp;
         int parLigne = 3;
 
+        int count = profils.size();
+        noms = new String[count];
+        couleurs = new String[count];
+        ronds = new TextView[count];
+
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
         String profilActif = prefs.getString(MainActivity.CURRENT_PROFILE, "");
-        int profilActifIdx = 0;
-        for (int j = 0; j < profils.size(); j++) {
+        focusIdx = 0;
+        for (int j = 0; j < count; j++) {
             if (profils.get(j)[0].equals(profilActif)) {
-                profilActifIdx = j;
+                focusIdx = j;
                 break;
             }
         }
 
         LinearLayout ligne = null;
-        for (int i = 0; i < profils.size(); i++) {
+        for (int i = 0; i < count; i++) {
             if (i % parLigne == 0) {
                 ligne = new LinearLayout(this);
                 ligne.setOrientation(LinearLayout.HORIZONTAL);
-                ligne.setGravity(Gravity.CENTER_HORIZONTAL);
+                ligne.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
                 container.addView(ligne);
             }
 
-            final String nom = profils.get(i)[0];
-            final String couleurHex = profils.get(i)[1];
+            noms[i] = profils.get(i)[0];
+            couleurs[i] = profils.get(i)[1];
+
+            final int idx = i;
 
             LinearLayout bloc = new LinearLayout(this);
             bloc.setOrientation(LinearLayout.VERTICAL);
-            bloc.setGravity(Gravity.CENTER_HORIZONTAL);
+            bloc.setGravity(android.view.Gravity.CENTER_HORIZONTAL);
             bloc.setPadding(marge, marge / 2, marge, marge / 2);
+            bloc.setFocusable(true);
+            bloc.setFocusableInTouchMode(true);
             bloc.setClickable(true);
 
             TextView rond = new TextView(this);
-            rond.setText(lettreInitiale(nom));
+            rond.setText(lettreInitiale(noms[i]));
             rond.setTextSize(28);
             rond.setTextColor(Color.WHITE);
-            rond.setGravity(Gravity.CENTER);
+            rond.setGravity(android.view.Gravity.CENTER);
 
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.OVAL);
-            bg.setColor(Color.parseColor(couleurHex));
-            if (i == profilActifIdx) {
+            bg.setColor(Color.parseColor(couleurs[i]));
+            if (i == focusIdx) {
                 bg.setStroke(3 * dp, Color.WHITE);
             }
             rond.setBackground(bg);
 
             LinearLayout.LayoutParams rondParams = new LinearLayout.LayoutParams(tailleRond, tailleRond);
-            rondParams.gravity = Gravity.CENTER_HORIZONTAL;
+            rondParams.gravity = android.view.Gravity.CENTER_HORIZONTAL;
             rond.setLayoutParams(rondParams);
 
+            ronds[i] = rond;
             bloc.addView(rond);
 
             TextView label = new TextView(this);
-            label.setText(nom);
-            label.setGravity(Gravity.CENTER);
+            label.setText(noms[i]);
+            label.setGravity(android.view.Gravity.CENTER);
             label.setTextColor(0xFFCCCCCC);
             label.setTextSize(12);
             label.setSingleLine(true);
@@ -209,21 +238,46 @@ public class ProfileActivity extends Activity {
             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
-            labelParams.gravity = Gravity.CENTER_HORIZONTAL;
+            labelParams.gravity = android.view.Gravity.CENTER_HORIZONTAL;
             labelParams.topMargin = 6 * dp;
             label.setLayoutParams(labelParams);
 
             bloc.addView(label);
 
-            bloc.setOnClickListener(v -> selectionner(nom, couleurHex));
+            bloc.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    focusIdx = idx;
+                    majBordures();
+                }
+            });
+
+            bloc.setOnClickListener(v -> selectionner(noms[idx], couleurs[idx]));
 
             ligne.addView(bloc);
         }
 
-        if (profils.isEmpty()) {
+        if (count == 0) {
             container.setVisibility(View.GONE);
         } else {
             container.setVisibility(View.VISIBLE);
+            View premier = container.getChildAt(0);
+            if (premier != null) {
+                premier.requestFocus();
+            }
+        }
+    }
+
+    private void majBordures() {
+        if (ronds == null) return;
+        int dp = (int) getResources().getDisplayMetrics().density;
+        for (int i = 0; i < ronds.length; i++) {
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(Color.parseColor(couleurs[i]));
+            if (i == focusIdx) {
+                bg.setStroke(3 * dp, Color.WHITE);
+            }
+            ronds[i].setBackground(bg);
         }
     }
 
