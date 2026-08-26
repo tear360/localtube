@@ -2754,3 +2754,27 @@
 [2026-08-26 19:07:11] 127.0.0.1 - "GET /panel?profil=louis HTTP/1.1" 200 -
 [2026-08-26 19:07:11] 127.0.0.1 - code 404, message Not Found
 [2026-08-26 19:07:11] 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-08-26 19:11:55] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:12:05] 192.168.1.4 - "GET /api/videos?profil=louis HTTP/1.1" 200 -
+[2026-08-26 19:12:05] 192.168.1.4 - miniature "louis/Cache Cache MAIS Je ne vais JAMAIS Les Chercher.mp4" -> 6527 octets
+[2026-08-26 19:12:05] 192.168.1.4 - "GET /thumb/louis/Cache%20Cache%20MAIS%20Je%20ne%20vais%20JAMAIS%20Les%20Chercher.mp4?v=1787763807 HTTP/1.1" 200 -
+[2026-08-26 19:12:05] 192.168.1.4 - miniature "louis/J’ai Donné Mon Mot De Passe Netflix à 10,000 Personnes.mp4" -> 13206 octets
+[2026-08-26 19:12:05] 192.168.1.4 - "GET /thumb/louis/J%E2%80%99ai%20Donn%C3%A9%20Mon%20Mot%20De%20Passe%20Netflix%20%C3%A0%2010%2C000%20Personnes.mp4?v=1787763807 HTTP/1.1" 200 -
+[2026-08-26 19:12:05] 192.168.1.4 - miniature "louis/J’ai piégé Internet avec de fausses vidéos IA.mp4" -> 15121 octets
+[2026-08-26 19:12:05] 192.168.1.4 - "GET /thumb/louis/J%E2%80%99ai%20pi%C3%A9g%C3%A9%20Internet%20avec%20de%20fausses%20vid%C3%A9os%20IA.mp4?v=1787763807 HTTP/1.1" 200 -
+[2026-08-26 19:12:05] 192.168.1.4 - miniature "louis/La seule vidéo sur les croix de pharmacie (oui jen ai une).mp4" -> 9241 octets
+[2026-08-26 19:12:05] 192.168.1.4 - "GET /thumb/louis/La%20seule%20vid%C3%A9o%20sur%20les%20croix%20de%20pharmacie%20%28oui%20jen%20ai%20une%29.mp4?v=1787763807 HTTP/1.1" 200 -
+[2026-08-26 19:12:05] 192.168.1.4 - miniature "louis/Space Jam (1996).mp4" -> 7733 octets
+[2026-08-26 19:12:05] 192.168.1.4 - "GET /thumb/louis/Space%20Jam%20%281996%29.mp4?v=1787763807 HTTP/1.1" 200 -
+[2026-08-26 19:12:22] 192.168.1.4 - "GET /api/profils HTTP/1.1" 200 -
+[2026-08-26 19:12:29] 192.168.1.4 - "GET /api/videos?profil=oscar HTTP/1.1" 200 -
+[2026-08-26 19:12:29] 192.168.1.4 - miniature "oscar/5 Pro Minecraft VS 500 JOUEURS.mp4" -> 14678 octets
+[2026-08-26 19:12:29] 192.168.1.4 - "GET /thumb/oscar/5%20Pro%20Minecraft%20VS%20500%20JOUEURS.mp4?v=1787654490 HTTP/1.1" 200 -
+[2026-08-26 19:12:29] 192.168.1.4 - miniature "oscar/100 Jours sur Minecraft BEDROCK...mp4" -> 13181 octets
+[2026-08-26 19:12:29] 192.168.1.4 - miniature "oscar/Jai construit une ÎLE de LUXE sur Minecraft Hardcore.mp4" -> 11658 octets
+[2026-08-26 19:12:29] 192.168.1.4 - "GET /thumb/oscar/100%20Jours%20sur%20Minecraft%20BEDROCK...mp4?v=1787654245 HTTP/1.1" 200 -
+[2026-08-26 19:12:29] 192.168.1.4 - "GET /thumb/oscar/Jai%20construit%20une%20%C3%8ELE%20de%20LUXE%20sur%20Minecraft%20Hardcore.mp4?v=1787654819 HTTP/1.1" 200 -
+[2026-08-26 19:12:30] 192.168.1.4 - miniature "oscar/Le Voyage Pour Devenir SWORDMASTER.mp4" -> 16570 octets
+[2026-08-26 19:12:30] 192.168.1.4 - "GET /thumb/oscar/Le%20Voyage%20Pour%20Devenir%20SWORDMASTER.mp4?v=1787654499 HTTP/1.1" 200 -
+[2026-08-26 19:12:30] 192.168.1.4 - miniature "oscar/La plus grande opération despionnage de Minecraft..mp4" -> 6561 octets
+[2026-08-26 19:12:30] 192.168.1.4 - "GET /thumb/oscar/La%20plus%20grande%20op%C3%A9ration%20despionnage%20de%20Minecraft..mp4?v=1787654656 HTTP/1.1" 200 -

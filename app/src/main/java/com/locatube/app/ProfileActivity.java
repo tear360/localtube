@@ -150,6 +150,16 @@ public class ProfileActivity extends Activity {
         int marge = 16 * dp;
         int parLigne = 3;
 
+        SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
+        String profilActif = prefs.getString(MainActivity.CURRENT_PROFILE, "");
+        int profilActifIdx = 0;
+        for (int j = 0; j < profils.size(); j++) {
+            if (profils.get(j)[0].equals(profilActif)) {
+                profilActifIdx = j;
+                break;
+            }
+        }
+
         LinearLayout ligne = null;
         for (int i = 0; i < profils.size(); i++) {
             if (i % parLigne == 0) {
@@ -177,7 +187,9 @@ public class ProfileActivity extends Activity {
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.OVAL);
             bg.setColor(Color.parseColor(couleurHex));
-            bg.setStroke(3 * dp, Color.WHITE);
+            if (i == profilActifIdx) {
+                bg.setStroke(3 * dp, Color.WHITE);
+            }
             rond.setBackground(bg);
 
             LinearLayout.LayoutParams rondParams = new LinearLayout.LayoutParams(tailleRond, tailleRond);
