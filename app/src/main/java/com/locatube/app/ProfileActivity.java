@@ -4,12 +4,17 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.BaseAdapter;
+import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ListView;
+import android.widget.GridLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,10 +32,17 @@ public class ProfileActivity extends Activity {
     public static final String MODE_MANAGE = "manage";
 
     private final List<String> profils = new ArrayList<>();
-    private ArrayAdapter adapter;
+    private GridLayout grid;
     private EditText input;
+    private Button createBtn;
     private String mode;
     private String baseApi;
+
+    private static final int[] COULEURS = {
+            0xFFE50914, 0xFFB81D24, 0xFF1CE783,
+            0xFF564DFF, 0xFFFF6B6B, 0xFFFFD54F,
+            0xFF4FC3F7, 0xFFAB47BC, 0xFFFF7043,
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,14 +56,9 @@ public class ProfileActivity extends Activity {
 
         TextView titre = findViewById(R.id.profil_titre);
         TextView sousTitre = findViewById(R.id.profile_sous_titre);
-        ListView liste = findViewById(R.id.profile_list);
-        input = findViewById(R.id.profile_input);
-        findViewById(R.id.profile_create).setOnClickListener(v -> creerProfil());
-
-        input.setOnEditorActionListener((v, id, event) -> {
-            creerProfil();
-            return true;
-        });
+        grid = findViewById(R.id.profile_grid);
+        input = findViewById(R.id.profile_input_always);
+        createBtn = findViewById(R.id.profile_create_btn_always);
 
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
         String srv = prefs.getString("server", "").trim();
@@ -60,28 +67,38 @@ public class ProfileActivity extends Activity {
         }
         baseApi = srv;
 
-        adapter = new ArrayAdapter();
-        liste.setAdapter(adapter);
-        liste.setOnItemClickListener((parent, view, position, id) -> {
-            String nom = profils.get(position);
-            selectionner(nom);
+        createBtn.setOnClickListener(v -> creerProfil());
+        input.setOnEditorActionListener((v, id, event) -> {
+            creerProfil();
+            return true;
+        });
+
+        findViewById(R.id.profile_ajouter_label).setOnClickListener(v -> {
+            input.setVisibility(View.VISIBLE);
+            createBtn.setVisibility(View.VISIBLE);
+            input.requestFocus();
         });
 
         if (mode.equals(MODE_CREATE)) {
             titre.setText(R.string.profile_title_first);
             sousTitre.setText(R.string.profile_subtitle_first);
+            sousTitre.setVisibility(View.VISIBLE);
+            grid.setVisibility(View.GONE);
             input.setVisibility(View.VISIBLE);
-            liste.setVisibility(View.GONE);
-            sousTitre.setVisibility(View.GONE);
+            createBtn.setVisibility(View.VISIBLE);
+            findViewById(R.id.profile_ajouter_label).setVisibility(View.GONE);
         } else if (mode.equals(MODE_MANAGE)) {
             titre.setText(R.string.profile_manage);
             sousTitre.setVisibility(View.GONE);
-            input.setVisibility(View.VISIBLE);
-            liste.setVisibility(View.VISIBLE);
+            input.setVisibility(View.GONE);
+            createBtn.setVisibility(View.GONE);
+            findViewById(R.id.profile_ajouter_label).setVisibility(View.VISIBLE);
         } else {
             titre.setText(R.string.profile_title);
             sousTitre.setVisibility(View.VISIBLE);
             input.setVisibility(View.GONE);
+            createBtn.setVisibility(View.GONE);
+            findViewById(R.id.profile_ajouter_label).setVisibility(View.GONE);
         }
 
         chargerProfils();
@@ -90,7 +107,7 @@ public class ProfileActivity extends Activity {
     private void chargerProfils() {
         profils.clear();
         if (baseApi == null || baseApi.isEmpty()) {
-            adapter.notifyDataSetChanged();
+            afficherRonds();
             return;
         }
         new Thread(() -> {
@@ -102,7 +119,7 @@ public class ProfileActivity extends Activity {
             final String reponse = body;
             runOnUiThread(() -> {
                 if (reponse == null) {
-                    adapter.notifyDataSetChanged();
+                    afficherRonds();
                     return;
                 }
                 try {
@@ -112,17 +129,79 @@ public class ProfileActivity extends Activity {
                     }
                 } catch (Exception ignored) {
                 }
-                adapter.notifyDataSetChanged();
+                afficherRonds();
                 if (profils.isEmpty() && mode.equals(MODE_CHOOSE)) {
                     mode = MODE_CREATE;
                     TextView titre = findViewById(R.id.profil_titre);
                     titre.setText(R.string.profile_title_first);
-                    findViewById(R.id.profile_sous_titre).setVisibility(View.GONE);
+                    findViewById(R.id.profile_sous_titre).setVisibility(View.VISIBLE);
+                    grid.setVisibility(View.GONE);
                     input.setVisibility(View.VISIBLE);
-                    findViewById(R.id.profile_list).setVisibility(View.GONE);
+                    createBtn.setVisibility(View.VISIBLE);
+                    findViewById(R.id.profile_ajouter_label).setVisibility(View.GONE);
                 }
             });
         }).start();
+    }
+
+    private void afficherRonds() {
+        grid.removeAllViews();
+        int tailleRond = (int) (80 * getResources().getDisplayMetrics().density);
+        int marge = (int) (16 * getResources().getDisplayMetrics().density);
+        int tailleLettre = (int) (30 * getResources().getDisplayMetrics().density);
+
+        for (int i = 0; i < profils.size(); i++) {
+            final String nom = profils.get(i);
+
+            TextView rond = new TextView(this);
+            rond.setText(lettreInitiale(nom));
+            rond.setTextSize(28);
+            rond.setTextColor(Color.WHITE);
+            rond.setGravity(Gravity.CENTER);
+            rond.setWidth(tailleRond);
+            rond.setHeight(tailleRond);
+            rond.setClickable(true);
+            rond.setFocusable(true);
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(COULEURS[i % COULEURS.length]);
+            rond.setBackground(bg);
+
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = tailleRond;
+            params.height = tailleRond;
+            params.setMargins(marge, marge / 2, marge, marge / 2);
+            rond.setLayoutParams(params);
+
+            rond.setOnClickListener(v -> selectionner(nom));
+            rond.setOnLongClickListener(v -> {
+                supprimerProfil(nom);
+                return true;
+            });
+
+            grid.addView(rond);
+
+            TextView label = new TextView(this);
+            label.setText(nom);
+            label.setGravity(Gravity.CENTER);
+            label.setTextColor(getResources().getColor(android.R.color.white));
+            label.setTextSize(12);
+            label.setWidth(tailleRond);
+            label.setSingleLine(true);
+
+            GridLayout.LayoutParams lparams = new GridLayout.LayoutParams();
+            lparams.width = tailleRond;
+            lparams.setMargins(marge, 0, marge, 0);
+            label.setLayoutParams(lparams);
+
+            grid.addView(label);
+        }
+    }
+
+    private String lettreInitiale(String nom) {
+        if (nom == null || nom.isEmpty()) return "?";
+        return nom.substring(0, 1).toUpperCase();
     }
 
     private void creerProfil() {
@@ -156,6 +235,18 @@ public class ProfileActivity extends Activity {
         }).start();
     }
 
+    private void selectionner(String nom) {
+        SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
+        prefs.edit().putString(MainActivity.CURRENT_PROFILE, nom).apply();
+        setResult(RESULT_OK);
+        finish();
+    }
+
+    private void supprimerProfil(String nom) {
+        profils.remove(nom);
+        afficherRonds();
+    }
+
     private void enregistrerLocalement(String nom) {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
         prefs.edit().putString(MainActivity.CURRENT_PROFILE, nom).apply();
@@ -164,45 +255,5 @@ public class ProfileActivity extends Activity {
                 Toast.LENGTH_SHORT).show();
         setResult(RESULT_OK);
         finish();
-    }
-
-    private void selectionner(String nom) {
-        SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE);
-        prefs.edit().putString(MainActivity.CURRENT_PROFILE, nom).apply();
-        setResult(RESULT_OK);
-        finish();
-    }
-
-    private class ArrayAdapter extends BaseAdapter {
-        @Override
-        public int getCount() {
-            return profils.size();
-        }
-
-        @Override
-        public Object getItem(int position) {
-            return profils.get(position);
-        }
-
-        @Override
-        public long getItemId(int position) {
-            return position;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            TextView tv;
-            if (convertView instanceof TextView) {
-                tv = (TextView) convertView;
-            } else {
-                tv = new TextView(ProfileActivity.this);
-                int pad = (int) (16 * getResources().getDisplayMetrics().density);
-                tv.setPadding(pad, pad, pad, pad);
-                tv.setTextSize(18);
-                tv.setTextColor(getResources().getColor(android.R.color.white));
-            }
-            tv.setText(profils.get(position));
-            return tv;
-        }
     }
 }

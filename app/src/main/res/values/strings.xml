@@ -37,5 +37,6 @@
     <string name="profile_hint">Nom du profil</string>
     <string name="profile_create">Créer</string>
     <string name="profile_empty">Entre un nom de profil</string>
+    <string name="profile_ok">OK</string>
     <string name="profile_welcome">Bienvenue %1$s !</string>
 </resources>
