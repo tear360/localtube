@@ -130,8 +130,7 @@ public class MainActivity extends Activity {
         } else if (profilActif.isEmpty()) {
             ouvrirChoixProfil(MODE_CREATE);
         } else {
-            setTitle(getString(R.string.app_name) + " — " + profilActif);
-            fetchVideos();
+            ouvrirChoixProfil(MODE_CHOOSE);
         }
         UpdateChecker.check(this);
     }
@@ -494,5 +493,6 @@ public class MainActivity extends Activity {
     }
 
     private static final String MODE_CREATE = ProfileActivity.MODE_CREATE;
+    private static final String MODE_CHOOSE = ProfileActivity.MODE_CHOOSE;
     private static final String MODE_MANAGE = ProfileActivity.MODE_MANAGE;
 }

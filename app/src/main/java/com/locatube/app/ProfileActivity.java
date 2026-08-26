@@ -4,17 +4,15 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.GridLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,9 +37,9 @@ public class ProfileActivity extends Activity {
     private String baseApi;
 
     private static final int[] COULEURS = {
-            0xFFE50914, 0xFFB81D24, 0xFF1CE783,
-            0xFF564DFF, 0xFFFF6B6B, 0xFFFFD54F,
-            0xFF4FC3F7, 0xFFAB47BC, 0xFFFF7043,
+            0xFFE50914, 0xFF1CE783, 0xFF564DFF,
+            0xFFFFD54F, 0xFF4FC3F7, 0xFFAB47BC,
+            0xFFFF7043, 0xFFB81D24, 0xFFFF6B6B,
     };
 
     @Override
@@ -146,20 +144,27 @@ public class ProfileActivity extends Activity {
 
     private void afficherRonds() {
         grid.removeAllViews();
-        int tailleRond = (int) (80 * getResources().getDisplayMetrics().density);
-        int marge = (int) (16 * getResources().getDisplayMetrics().density);
-        int tailleLettre = (int) (30 * getResources().getDisplayMetrics().density);
+        int dp = (int) getResources().getDisplayMetrics().density;
+        int tailleRond = 80 * dp;
+        int marge = 16 * dp;
 
         for (int i = 0; i < profils.size(); i++) {
             final String nom = profils.get(i);
+
+            LinearLayout bloc = new LinearLayout(this);
+            bloc.setOrientation(LinearLayout.VERTICAL);
+            bloc.setGravity(Gravity.CENTER_HORIZONTAL);
+
+            GridLayout.LayoutParams blocParams = new GridLayout.LayoutParams();
+            blocParams.width = tailleRond + marge * 2;
+            blocParams.setMargins(0, marge / 2, 0, marge / 2);
+            bloc.setLayoutParams(blocParams);
 
             TextView rond = new TextView(this);
             rond.setText(lettreInitiale(nom));
             rond.setTextSize(28);
             rond.setTextColor(Color.WHITE);
             rond.setGravity(Gravity.CENTER);
-            rond.setWidth(tailleRond);
-            rond.setHeight(tailleRond);
             rond.setClickable(true);
             rond.setFocusable(true);
 
@@ -168,34 +173,31 @@ public class ProfileActivity extends Activity {
             bg.setColor(COULEURS[i % COULEURS.length]);
             rond.setBackground(bg);
 
-            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
-            params.width = tailleRond;
-            params.height = tailleRond;
-            params.setMargins(marge, marge / 2, marge, marge / 2);
-            rond.setLayoutParams(params);
+            LinearLayout.LayoutParams rondParams = new LinearLayout.LayoutParams(tailleRond, tailleRond);
+            rondParams.gravity = Gravity.CENTER_HORIZONTAL;
+            rond.setLayoutParams(rondParams);
 
             rond.setOnClickListener(v -> selectionner(nom));
-            rond.setOnLongClickListener(v -> {
-                supprimerProfil(nom);
-                return true;
-            });
 
-            grid.addView(rond);
+            bloc.addView(rond);
 
             TextView label = new TextView(this);
             label.setText(nom);
             label.setGravity(Gravity.CENTER);
-            label.setTextColor(getResources().getColor(android.R.color.white));
+            label.setTextColor(0xFFCCCCCC);
             label.setTextSize(12);
-            label.setWidth(tailleRond);
             label.setSingleLine(true);
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
 
-            GridLayout.LayoutParams lparams = new GridLayout.LayoutParams();
-            lparams.width = tailleRond;
-            lparams.setMargins(marge, 0, marge, 0);
-            label.setLayoutParams(lparams);
+            LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            labelParams.gravity = Gravity.CENTER_HORIZONTAL;
+            labelParams.topMargin = 6 * dp;
+            label.setLayoutParams(labelParams);
 
-            grid.addView(label);
+            bloc.addView(label);
+            grid.addView(bloc);
         }
     }
 
@@ -240,11 +242,6 @@ public class ProfileActivity extends Activity {
         prefs.edit().putString(MainActivity.CURRENT_PROFILE, nom).apply();
         setResult(RESULT_OK);
         finish();
-    }
-
-    private void supprimerProfil(String nom) {
-        profils.remove(nom);
-        afficherRonds();
     }
 
     private void enregistrerLocalement(String nom) {
